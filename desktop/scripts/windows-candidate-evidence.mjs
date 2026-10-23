@@ -30,9 +30,12 @@ const status=spawnSync('git',['status','--porcelain','--untracked-files=normal']
 if(status.status!==0)throw new Error('Source cleanliness cannot be established');
 const sourceClean=status.stdout.trim().length===0;
 const trusted=files.every(f=>f.signature.status==='Valid');
-const report={schema:1,version,sourceRevision:git.stdout.trim(),sourceClean,githubRun:process.env.GITHUB_RUN_ID||null,observedAt:new Date().toISOString(),files,allAuthenticodeValid:trusted,releaseAccepted:false,remaining:'Trusted publisher identity, signed-uninstaller embedding provenance, installation/upgrade/uninstallation and onboarding acceptance are separate required gates.'};
+const expectedSignerSubject=process.env.NOTE_EXPECTED_SIGNER_SUBJECT?.trim()||null;
+const publisherMatches=Boolean(expectedSignerSubject)&&files.every(f=>f.signature.status==='Valid'&&f.signature.subject===expectedSignerSubject);
+const report={schema:1,version,sourceRevision:git.stdout.trim(),sourceClean,githubRun:process.env.GITHUB_RUN_ID||null,observedAt:new Date().toISOString(),files,allAuthenticodeValid:trusted,expectedSignerSubject,publisherMatches,releaseAccepted:false,remaining:'Provider approval, signed-uninstaller embedding provenance, installation/upgrade/uninstallation and onboarding acceptance are separate required gates.'};
 await writeFile(join(out,'signatures.json'),JSON.stringify(report,null,2)+'\n');
-await writeFile(join(out,'STATUS.txt'),`DEVELOPMENT BUILD EVIDENCE\nVersion: ${version}\nSource: ${report.sourceRevision}\nSource worktree clean: ${sourceClean}\nAll Authenticode valid: ${trusted}\nRELEASE ACCEPTANCE: NOT PASSED\nDo not describe source tests, successful compilation or this artifact upload as a signed release.\n`);
-console.log(JSON.stringify({version,sourceRevision:report.sourceRevision,allAuthenticodeValid:trusted,releaseAccepted:false,report:join(out,'signatures.json')}));
+await writeFile(join(out,'STATUS.txt'),`DEVELOPMENT BUILD EVIDENCE\nVersion: ${version}\nSource: ${report.sourceRevision}\nSource worktree clean: ${sourceClean}\nAll Authenticode valid: ${trusted}\nExpected publisher matches: ${publisherMatches}\nRELEASE ACCEPTANCE: NOT PASSED\nDo not describe source tests, successful compilation or this artifact upload as a signed release.\n`);
+console.log(JSON.stringify({version,sourceRevision:report.sourceRevision,sourceClean,allAuthenticodeValid:trusted,publisherMatches,releaseAccepted:false,report:join(out,'signatures.json')}));
 if(process.argv.includes('--require-trusted')&&!trusted){console.error('SIGNATURE GATE BLOCKED: application, installer and uninstaller must all have valid trusted signatures.');process.exitCode=1;}
 if(process.argv.includes('--require-trusted')&&!sourceClean){console.error('SOURCE GATE BLOCKED: the worktree differs from the recorded source revision.');process.exitCode=1;}
+if(process.argv.includes('--require-trusted')&&!publisherMatches){console.error('PUBLISHER GATE BLOCKED: configure the independently verified expected signer subject; all three signatures must match it exactly.');process.exitCode=1;}

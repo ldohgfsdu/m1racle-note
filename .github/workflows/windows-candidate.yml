@@ -24,6 +24,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install the official Electron runtime used by hidden tests
+        run: node node_modules/electron/install.js
       - name: Build and inspect the portable application
         shell: pwsh
         run: |
@@ -63,3 +65,5 @@ jobs:
             ${{ runner.temp }}/note-onboarding-evidence/
       - name: Signature gate - intentionally blocked while binaries are unsigned
         run: node desktop/scripts/windows-candidate-evidence.mjs --require-trusted
+        env:
+          NOTE_EXPECTED_SIGNER_SUBJECT: ${{ vars.NOTE_EXPECTED_SIGNER_SUBJECT }}

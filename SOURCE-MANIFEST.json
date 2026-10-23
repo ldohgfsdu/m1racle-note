@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/windows-candidate.yml",
-      "bytes": 2959,
-      "sha256": "50ebf2cb59453ffa32cf9dc60136345e7a73579c66bf66fd4369302c82fbd346"
+      "bytes": 3177,
+      "sha256": "cb5fc764c3351d6fa7bab9c87a11501de141249adf36dd692ebafb68cc998f65"
     },
     {
       "path": ".gitignore",
@@ -284,8 +284,8 @@
     },
     {
       "path": "CODE_SIGNING.md",
-      "bytes": 1427,
-      "sha256": "cddbcc651e2aa59a29d251499cc72c5d7dd77e6e01bb805215c397c4c57fa498"
+      "bytes": 1873,
+      "sha256": "4fb0f0f89b2e24c48edc9389baf9beb0e7835a4633fe9ab71a165c0bc52abd3a"
     },
     {
       "path": "design-system/platform/android/M1racleTokens.kt",
@@ -749,8 +749,8 @@
     },
     {
       "path": "desktop/scripts/windows-candidate-evidence.mjs",
-      "bytes": 3917,
-      "sha256": "114f788da7941f7d090252480ac32b431d94fa5ac6031fb83520fab7dcbdf45b"
+      "bytes": 4489,
+      "sha256": "d5aa6e1df534bd6307335376b7a046a259c9ee5ec62e97c3866aee9d8a2c58f0"
     },
     {
       "path": "desktop/scripts/windows-icons.cjs",

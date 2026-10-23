@@ -13,3 +13,5 @@ If the project is accepted, the required attribution will be published on the ho
 That sentence describes the intended attribution after approval, not a present sponsorship claim. Eligibility and acceptance are determined by [SignPath Foundation](https://signpath.org/terms.html).
 
 See [Privacy](PRIVACY.md). Signed release acceptance must include signature checks and real installation, upgrade and uninstallation tests; compilation alone does not establish a release pass.
+
+The development-build evidence workflow does not request signing or publish a release. Its signature gate also requires `NOTE_EXPECTED_SIGNER_SUBJECT`, configured only after independently verifying the approved provider certificate's exact subject. An unconfigured or mismatched signer fails the check. Even a successful signature check does not establish provider approval, correct embedded-uninstaller provenance or native release acceptance.
