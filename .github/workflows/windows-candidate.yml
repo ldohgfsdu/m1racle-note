@@ -35,10 +35,6 @@ jobs:
           $version = [regex]::Match($source, "export const version='(\d+\.\d+\.\d+)'").Groups[1].Value
           node desktop/scripts/windows-verify-package.mjs $version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Exercise onboarding in the existing hidden Electron harness
-        run: npm run verify:targeted -- --only desktop-onboarding
-        env:
-          NOTE_QA_OUTPUT: ${{ runner.temp }}/note-onboarding-evidence
       - name: Prepare pinned NSIS compiler
         shell: pwsh
         run: |
@@ -50,7 +46,12 @@ jobs:
       - name: Build installer and export uninstaller for signing
         run: node desktop/scripts/windows-installer.mjs --export-uninstaller desktop/releases/signing/Uninstall.exe
       - name: Record actual signatures and source revision
+        id: signature-evidence
         run: node desktop/scripts/windows-candidate-evidence.mjs
+      - name: Exercise onboarding in the existing hidden Electron harness
+        run: npm run verify:targeted -- --only desktop-onboarding
+        env:
+          NOTE_QA_OUTPUT: ${{ runner.temp }}/note-onboarding-evidence
       - name: Retain build evidence; these files are not an accepted release
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -64,6 +65,7 @@ jobs:
             desktop/releases/candidate-evidence/
             ${{ runner.temp }}/note-onboarding-evidence/
       - name: Signature gate - intentionally blocked while binaries are unsigned
+        if: always() && steps.signature-evidence.outcome == 'success'
         run: node desktop/scripts/windows-candidate-evidence.mjs --require-trusted
         env:
           NOTE_EXPECTED_SIGNER_SUBJECT: ${{ vars.NOTE_EXPECTED_SIGNER_SUBJECT }}

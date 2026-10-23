@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/windows-candidate.yml",
-      "bytes": 3177,
-      "sha256": "cb5fc764c3351d6fa7bab9c87a11501de141249adf36dd692ebafb68cc998f65"
+      "bytes": 3278,
+      "sha256": "f9259fa775ce54d81156b859706c795162bb8851e89246aa0a82aa7a77c92495"
     },
     {
       "path": ".gitignore",
@@ -1039,8 +1039,8 @@
     },
     {
       "path": "desktop/tests/onboarding-ui.mjs",
-      "bytes": 9652,
-      "sha256": "cf8307c3f9643be69365edcee1f604a4f7dac9cdc33e4e3982aab3104cebe4a1"
+      "bytes": 10389,
+      "sha256": "f8ea6879e2ef9a726f39bef988b4c6840d63ba3cb0053ef31ecc4e2c03fb5595"
     },
     {
       "path": "desktop/tests/onboarding.test.mjs",

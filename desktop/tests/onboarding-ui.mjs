@@ -2,7 +2,7 @@ import './hidden-launch.mjs';
 import {_electron as electron} from '@playwright/test';
 import {resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {mkdir,mkdtemp,rm} from 'node:fs/promises';
+import {mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;
 const profile=await mkdtemp(join(tmpdir(),'note-onboarding-'));
@@ -12,6 +12,13 @@ await mkdir(output,{recursive:true});
 const app=await electron.launch({executablePath,args:[resolve('desktop/main.mjs'),'--user-data-dir='+profile],env,timeout:30000});
 try {
   const page=await app.firstWindow();await page.locator('.cm-content').waitFor();
+  const captures=[];
+  let captureFailure=null;
+  async function capture(name){
+    if(captureFailure){captures.push({name,status:'not-run',reason:'Earlier hidden capture failed; no repeated retries.'});return;}
+    try{await page.screenshot({path:join(output,name),timeout:30000});captures.push({name,status:'captured'});}
+    catch(error){captureFailure=String(error?.message||error);captures.push({name,status:'failed',error:captureFailure});console.error('VISUAL_CAPTURE_FAILED: '+captureFailure);}
+  }
   await app.evaluate(({ipcMain})=>{
     globalThis.noteOnboardingState={available:true,dismissed:false,md:false,markdown:false};
     globalThis.noteSettingsTargeted=true;globalThis.noteOnboardingFail=false;globalThis.noteStateReads=0;
@@ -36,16 +43,16 @@ try {
   assert.equal(await page.locator('#onboarding-primary').innerText(),'前往设置');
   assert.equal(await page.locator('#onboarding-open').evaluate(e=>e===document.activeElement),true);
   assert.equal(await page.locator('#onboarding').evaluate(el=>el.open),true);
-  await page.screenshot({path:join(output,'onboarding.png')});
+  await capture('onboarding.png');
   await page.locator('.onboarding-mark img:visible').evaluate(image=>image.decode());
   assert.equal(await page.locator('.onboarding-mark').innerText(),'');
   assert.equal(await page.locator('.onboarding-mark img:visible').evaluate(image=>image.naturalWidth),128);
   assert.equal(await page.locator('.brand-mark img:visible').evaluate(image=>image.naturalWidth),2000);
   await page.evaluate(()=>{document.documentElement.classList.remove('dark');document.documentElement.dataset.theme='light';});
-  await page.screenshot({path:join(output,'onboarding-brand-day.png')});
+  await capture('onboarding-brand-day.png');
   assert.equal(await page.locator('.onboarding-mark img:visible').evaluate(el=>getComputedStyle(el).mixBlendMode),'normal');
   assert.equal(await page.locator('.onboarding-mark img:visible').evaluate(el=>getComputedStyle(el).filter),'none');
-  await page.evaluate(()=>{document.documentElement.classList.add('dark');document.documentElement.dataset.theme='dark';});await page.screenshot({path:join(output,'onboarding-brand-night.png')});
+  await page.evaluate(()=>{document.documentElement.classList.add('dark');document.documentElement.dataset.theme='dark';});await capture('onboarding-brand-night.png');
   assert.equal(await page.locator('.onboarding-mark img:visible').evaluate(el=>getComputedStyle(el).mixBlendMode),'normal');
   await page.evaluate(()=>{document.documentElement.classList.remove('dark');document.documentElement.dataset.theme='light';});
   await page.locator('#onboarding-primary').click();assert.match(await page.locator('#onboarding-message').innerText(),/\.md 和 \.markdown/);
@@ -54,7 +61,7 @@ try {
   assert.equal(await page.locator('#onboarding-primary').innerText(),'再检查一次');
   await app.evaluate(()=>{globalThis.noteOnboardingState.markdown=true;});await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await page.locator('#onboarding-primary').filter({hasText:'开始使用'}).waitFor();
-  await page.screenshot({path:join(output,'onboarding-success.png')});
+  await capture('onboarding-success.png');
   await app.evaluate(()=>{globalThis.noteOnboardingFail=true;});await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await page.locator('#association-md').filter({hasText:'未确认'}).waitFor();
   assert.equal(await page.locator('#association-markdown').innerText(),'.markdown · 未确认');
@@ -96,5 +103,8 @@ try {
   assert.equal(await page.locator('#onboarding-open').isDisabled(),false);
   assert.equal(await page.locator('#default-app').innerText(),'使用引导与默认应用…');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({passed:true,screenshots:output,checks:['first-launch-dialog','initial-focus-open','refresh-failure-clears-success','open-cancel-keeps-dialog','new-error-keeps-dialog','new-success-closes','source-no-auto-intro','manual-source-intro','escape-skip','no-page-or-console-errors']}));
+  const result={passed:!captureFailure,functionalPassed:true,visualCaptureComplete:!captureFailure,visualAcceptance:'Not established by screenshot existence; requires independent visual review.',screenshots:output,captures,checks:['first-launch-dialog','initial-focus-open','refresh-failure-clears-success','open-cancel-keeps-dialog','new-error-keeps-dialog','new-success-closes','source-no-auto-intro','manual-source-intro','escape-skip','no-page-or-console-errors']};
+  await writeFile(join(output,'onboarding-result.json'),JSON.stringify(result,null,2)+'\n');
+  console.log(JSON.stringify(result));
+  if(captureFailure)process.exitCode=1;
 }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});await app.close().catch(()=>{});await rm(profile,{recursive:true,force:true,maxRetries:20,retryDelay:250});}
