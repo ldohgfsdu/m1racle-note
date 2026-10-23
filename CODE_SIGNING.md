@@ -14,7 +14,7 @@ That sentence describes the intended attribution after approval, not a present s
 
 See [Privacy](PRIVACY.md). Signed release acceptance must include signature checks and real installation, upgrade and uninstallation tests; compilation alone does not establish a release pass.
 
-The development-build evidence workflow does not request signing or publish a release. Its signature gate also requires `NOTE_EXPECTED_SIGNER_SUBJECT`, configured only after independently verifying the approved provider certificate's exact subject. An unconfigured or mismatched signer fails the check. Even a successful signature check does not establish provider approval, correct embedded-uninstaller provenance or native release acceptance.
+The unsigned-preview workflow does not request signing or publish a release. It always records actual signature status, but missing signatures do not fail ordinary preview development checks. The optional `require_signed` manual input enables the trusted-signature gate, which also requires `NOTE_EXPECTED_SIGNER_SUBJECT`, configured only after independently verifying the approved provider certificate's exact subject. An unconfigured or mismatched signer fails that gate. Even a successful signature check does not establish provider approval, correct embedded-uninstaller provenance or native release acceptance.
 
 ## Prepared NSIS signing path — positive signing acceptance pending
 

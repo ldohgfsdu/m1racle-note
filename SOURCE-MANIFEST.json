@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/windows-candidate.yml",
-      "bytes": 3278,
-      "sha256": "f9259fa775ce54d81156b859706c795162bb8851e89246aa0a82aa7a77c92495"
+      "bytes": 3419,
+      "sha256": "74cbfdfda67ad62fdd09471b510a232fdd3a438f272294178f707c11bb4d4aeb"
     },
     {
       "path": ".gitignore",
@@ -284,8 +284,8 @@
     },
     {
       "path": "CODE_SIGNING.md",
-      "bytes": 4318,
-      "sha256": "eea0a76821765fe29743917eb5003886b7d64fea5a5957634595e469a292917d"
+      "bytes": 4489,
+      "sha256": "d9b237e19319dc3d77bd9169618087577f21bc5be5c4c931d8fe63e0f2a0389f"
     },
     {
       "path": "design-system/platform/android/M1racleTokens.kt",
@@ -664,8 +664,8 @@
     },
     {
       "path": "desktop/renderer/onboarding.js",
-      "bytes": 8823,
-      "sha256": "e782911dcdf8fb3a31c0a38f3fe2c937341b2dbe2ac75974449c078b13352376"
+      "bytes": 8811,
+      "sha256": "007d6d0ce2909cf9e0f50ca657b260769e24ae6c5c8d988e2e9f0337be7719ac"
     },
     {
       "path": "desktop/renderer/pane-drag.js",
@@ -1039,8 +1039,8 @@
     },
     {
       "path": "desktop/tests/onboarding-flow.test.mjs",
-      "bytes": 9610,
-      "sha256": "b5543dbd370cc4f8e7b56b962ea95384b1b26eea921469062722017cadffb313"
+      "bytes": 11633,
+      "sha256": "636a2a271b5192ecd1340eb1c9db85e822cead00e89079442309e33bbabbcd9e"
     },
     {
       "path": "desktop/tests/onboarding-ui.mjs",
@@ -1924,8 +1924,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 2629,
-      "sha256": "23c0d14080d355ab1513fa0451012c1c38797240a97256607bc90ef2b641254f"
+      "bytes": 2818,
+      "sha256": "83fe015b828a74e8baed37e4abf7685c6e9c8dcb5f21dc1c9066a3be0b95511f"
     },
     {
       "path": "tests/device-driver.test.mjs",

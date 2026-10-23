@@ -70,7 +70,7 @@ function createHarness() {
 
 function boot(actions = {}) {
   const harness = createHarness();
-  const box = {state: {available: true, dismissed: false, md: false, markdown: false}, fail: false, dismiss: null};
+  const box = {state: {available: true, dismissed: false, md: false, markdown: false}, fail: false, dismiss: null, settings: null};
   const calls = [];
   const bridge = {
     request(type) {
@@ -83,7 +83,7 @@ function boot(actions = {}) {
         calls.dismiss = (calls.dismiss || 0) + 1;
         return box.dismiss ? box.dismiss() : Promise.resolve(true);
       }
-      if (type === 'default-app') return Promise.resolve({targeted: true});
+      if (type === 'default-app') return box.settings ? box.settings() : Promise.resolve({targeted: true});
       return Promise.reject(new Error('unexpected ' + type));
     },
   };
@@ -95,6 +95,47 @@ function boot(actions = {}) {
 async function flush() {
   for (let i = 0; i < 8; i += 1) await Promise.resolve();
 }
+
+test('returning from settings keeps note and dismissal operations exclusive', async () => {
+  let releaseNote, releaseDismiss;
+  const flow=boot({openExisting:()=>new Promise(resolve=>{releaseNote=resolve;})});
+  await flow.api.open();
+  await flow.nodes.get('onboarding-primary').onclick();
+  const pending=flow.nodes.get('onboarding-open').onclick();
+  flow.window.emit('focus');
+  await flush();
+  for(const id of ['onboarding-open','onboarding-new','onboarding-primary','onboarding-skip']) assert.equal(flow.nodes.get(id).disabled,true,id+' must remain busy');
+  const settingsCalls=flow.calls.filter(x=>x==='default-app').length;
+  await flow.nodes.get('onboarding-primary').onclick();
+  assert.equal(flow.calls.filter(x=>x==='default-app').length,settingsCalls);
+  flow.box.dismiss=()=>new Promise(resolve=>{releaseDismiss=resolve;});
+  releaseNote({ok:true});
+  await flush();
+  flow.window.emit('focus');
+  await flush();
+  for(const id of ['onboarding-open','onboarding-new','onboarding-primary','onboarding-skip']) assert.equal(flow.nodes.get(id).disabled,true,id+' must remain busy during dismissal');
+  releaseDismiss(true);
+  await pending;
+  assert.equal(flow.nodes.get('onboarding').open,false);
+});
+
+test('settings launch cannot overlap note creation or dismissal', async()=>{
+  let releaseSettings;
+  let newCalls=0;
+  const flow=boot({createNote:async()=>{newCalls++;return {ok:true};}});
+  await flow.api.open();
+  flow.box.settings=()=>new Promise(resolve=>{releaseSettings=resolve;});
+  const pending=flow.nodes.get('onboarding-primary').onclick();
+  await flow.nodes.get('onboarding-new').onclick();
+  await flow.nodes.get('onboarding-skip').onclick();
+  flow.nodes.get('onboarding').dispatch('cancel');
+  assert.equal(newCalls,0);
+  assert.equal(flow.calls.dismiss||0,0);
+  assert.equal(flow.nodes.get('onboarding').open,true);
+  releaseSettings({targeted:true});
+  await pending;
+  assert.equal(flow.nodes.get('onboarding-new').disabled,false);
+});
 
 test('first-use onboarding follows the callback contract', async () => {
   const editor = {closest: selector => selector === '.cm-content' ? editor : null};

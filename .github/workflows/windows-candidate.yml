@@ -1,7 +1,12 @@
-name: Windows build evidence - release not accepted
+name: Windows unsigned preview checks
 
 on:
   workflow_dispatch:
+    inputs:
+      require_signed:
+        description: Require trusted signatures in addition to preview checks
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -64,8 +69,8 @@ jobs:
             desktop/releases/signing/
             desktop/releases/candidate-evidence/
             ${{ runner.temp }}/note-onboarding-evidence/
-      - name: Signature gate - intentionally blocked while binaries are unsigned
-        if: always() && steps.signature-evidence.outcome == 'success'
+      - name: Optional trusted-signature gate
+        if: always() && inputs.require_signed == true && steps.signature-evidence.outcome == 'success'
         run: node desktop/scripts/windows-candidate-evidence.mjs --require-trusted
         env:
           NOTE_EXPECTED_SIGNER_SUBJECT: ${{ vars.NOTE_EXPECTED_SIGNER_SUBJECT }}

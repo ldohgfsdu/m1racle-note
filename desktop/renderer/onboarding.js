@@ -23,7 +23,7 @@ export function createDefaultOnboarding(bridge, actions = {}) {
   const skip = document.getElementById('onboarding-skip');
   const description = document.getElementById('onboarding-description');
   const message = document.getElementById('onboarding-message');
-  let awaitingSettings = false, checking = false, closing = false, noteInFlight = false, complete = false, lastState = null, previousFocus = null, editorComposing = false, deferredOpen = null;
+  let awaitingSettings = false, checking = false, closing = false, noteInFlight = false, settingsInFlight = false, complete = false, lastState = null, previousFocus = null, editorComposing = false, deferredOpen = null;
 
   function say(text, isError) {
     message.textContent = text;
@@ -31,7 +31,8 @@ export function createDefaultOnboarding(bridge, actions = {}) {
     else delete message.dataset.error;
     message.setAttribute('aria-live', isError ? 'assertive' : 'polite');
   }
-  function setBusy(value) {
+  function setBusy() {
+    const value = checking || closing || noteInFlight || settingsInFlight;
     for (const node of [openNote, newNote, skip, primary]) if (node) node.disabled = value;
     if (!value && lastState && lastState.available === false && !complete) primary.disabled = true;
   }
@@ -42,7 +43,6 @@ export function createDefaultOnboarding(bridge, actions = {}) {
       if (node) node.textContent = associationText(extension, state);
     }
     primary.textContent = complete ? '开始使用' : awaitingSettings ? '再检查一次' : '前往设置';
-    primary.disabled = state.available === false && !complete;
     if (skip) skip.hidden = false;
     if (description) description.textContent = '笔记就是你电脑里的 Markdown 文件。M1racle Note 在原处打开和保存，不会移动、复制或收进别的库。';
     const detail = state.available !== true
@@ -68,14 +68,13 @@ export function createDefaultOnboarding(bridge, actions = {}) {
     }
     if (primary) {
       primary.textContent = awaitingSettings ? '再检查一次' : '前往设置';
-      primary.disabled = false;
     }
     say('暂时无法确认默认应用。你可以先开始使用，稍后再检查。', true);
   }
   async function refresh() {
     if (checking) return lastState;
     checking = true;
-    if (primary) primary.disabled = true;
+    setBusy();
     try {
       const state = await bridge.request('onboarding-state');
       if (!state || typeof state !== 'object') throw new Error('暂时无法确认默认应用。');
@@ -87,7 +86,7 @@ export function createDefaultOnboarding(bridge, actions = {}) {
       return null;
     } finally {
       checking = false;
-      if (primary) primary.disabled = Boolean(lastState && lastState.available === false && !complete);
+      setBusy();
     }
   }
   function focusEditor() {
@@ -101,9 +100,9 @@ export function createDefaultOnboarding(bridge, actions = {}) {
     target?.focus?.({preventScroll: true});
   }
   async function dismissAndClose(toEditor) {
-    if (closing || noteInFlight) return false;
+    if (closing || noteInFlight || settingsInFlight) return false;
     closing = true;
-    setBusy(true);
+    setBusy();
     try {
       await bridge.request('onboarding-dismiss');
       awaitingSettings = false;
@@ -116,7 +115,7 @@ export function createDefaultOnboarding(bridge, actions = {}) {
       return false;
     } finally {
       closing = false;
-      setBusy(false);
+      setBusy();
     }
   }
   function present() {
@@ -138,9 +137,9 @@ export function createDefaultOnboarding(bridge, actions = {}) {
   }
   async function runNote(kind) {
     if (editorComposing) { say('输入法还在输入，请先完成当前文字。', true); return; }
-    if (noteInFlight || closing) return;
+    if (noteInFlight || closing || settingsInFlight || checking) return;
     noteInFlight = true;
-    setBusy(true);
+    setBusy();
     let succeeded = false;
     try {
       const result = await invokeCommand(kind);
@@ -154,7 +153,7 @@ export function createDefaultOnboarding(bridge, actions = {}) {
       return;
     } finally {
       noteInFlight = false;
-      setBusy(false);
+      setBusy();
     }
     if (succeeded) await dismissAndClose(true);
   }
@@ -162,10 +161,12 @@ export function createDefaultOnboarding(bridge, actions = {}) {
   newNote.onclick = () => runNote('new');
   skip.onclick = () => dismissAndClose(false);
   primary.onclick = async () => {
+    if (noteInFlight || closing || settingsInFlight || checking) return;
     if (complete) { await dismissAndClose(false); return; }
     if (awaitingSettings) { await refresh(); return; }
     if (lastState && lastState.available === false) { say('此预览版暂不支持系统默认打开设置。', true); return; }
-    primary.disabled = true;
+    settingsInFlight = true;
+    setBusy();
     try {
       const result = await bridge.request('default-app');
       awaitingSettings = true;
@@ -176,12 +177,13 @@ export function createDefaultOnboarding(bridge, actions = {}) {
     } catch {
       say('未能打开 Windows 设置。可在系统“设置 → 应用 → 默认应用”中搜索 .md，选择 M1racle Note。', true);
     } finally {
-      primary.disabled = Boolean(lastState && lastState.available === false && !complete);
+      settingsInFlight = false;
+      setBusy();
     }
   };
   modal.addEventListener('cancel', event => {
     event.preventDefault();
-    if (noteInFlight || closing) return;
+    if (noteInFlight || closing || settingsInFlight) return;
     dismissAndClose(false);
   });
   window.addEventListener('focus', () => { if (awaitingSettings && modal.open) refresh(); });

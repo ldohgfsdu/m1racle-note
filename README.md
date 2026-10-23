@@ -27,7 +27,7 @@ Android 编辑资源：`npm run build`。安装 Android SDK 并配置本机 `mob
 
 此前本机 0.1.18 未签名候选包验证了当前用户安装、同版本覆盖安装、主窗口及合成文档无编辑保存；这些记录不代表当前公开源码版本已验收。其卸载程序被 Windows 应用控制拦截，完整安装/卸载发布验收未通过。当前没有可信签名正式版。Android 设备、物理输入法和持续性能仍需独立实机证据。
 
-GitHub 的 Windows build evidence 工作流生成开发验证资料，并在签名缺失时明确失败。保留的产物不属于验收通过的发布包。
+GitHub 的 Windows unsigned preview checks 工作流构建未签名测试包并检查引导。缺少签名不再使开发检查固定失败，报告仍如实记录签名状态及 `releaseAccepted:false`；手动运行时可勾选 `require_signed`，额外强制检查可信签名。检查通过不代表完整安装/卸载或正式发布验收。
 
 ## 许可与 Code signing policy
 
