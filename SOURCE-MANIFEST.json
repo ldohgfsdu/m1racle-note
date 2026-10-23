@@ -13,6 +13,11 @@
       "sha256": "132cb42330ecbfe8c1446d7df59d1b611f4c28bad26e95d19a19e662eff99df4"
     },
     {
+      "path": ".github/workflows/windows-candidate.yml",
+      "bytes": 2959,
+      "sha256": "50ebf2cb59453ffa32cf9dc60136345e7a73579c66bf66fd4369302c82fbd346"
+    },
+    {
       "path": ".gitignore",
       "bytes": 310,
       "sha256": "8b0e5dd3518b171f36824bb29c10ea7fb503956465facf088d106540b2d7c905"
@@ -279,8 +284,8 @@
     },
     {
       "path": "CODE_SIGNING.md",
-      "bytes": 1309,
-      "sha256": "655a0929ac4e2fb04600dd1e4278af1d5e8043299c06943f8e2e80c7df51b99b"
+      "bytes": 1427,
+      "sha256": "cddbcc651e2aa59a29d251499cc72c5d7dd77e6e01bb805215c397c4c57fa498"
     },
     {
       "path": "design-system/platform/android/M1racleTokens.kt",
@@ -534,8 +539,8 @@
     },
     {
       "path": "desktop/installer/setup-template.nsi",
-      "bytes": 11823,
-      "sha256": "750b1816e6f278e18472d41ff5af36966b22d61de103c242b963c71c561cb06d"
+      "bytes": 11893,
+      "sha256": "5665ed6752c3ecd01139f0575af083e6dd11c26695a9f85f007edac6306d6b2b"
     },
     {
       "path": "desktop/library-names.mjs",
@@ -619,8 +624,8 @@
     },
     {
       "path": "desktop/renderer/index.html",
-      "bytes": 19087,
-      "sha256": "2bc891e9400058df4794633bd1f1db828ffffba2e8a7598521613390b33f86a6"
+      "bytes": 19340,
+      "sha256": "2f5b2b19e266c7c7c5b9b45af99fe6771026eedb8a80285bfaebe016fa54becd"
     },
     {
       "path": "desktop/renderer/insert-dialog.js",
@@ -649,8 +654,8 @@
     },
     {
       "path": "desktop/renderer/main.js",
-      "bytes": 42658,
-      "sha256": "5ab26b2da71e8378da6ecaff159cef302dbf2c1f638566e0703dbd72f59322cf"
+      "bytes": 43136,
+      "sha256": "7f67f8bcee839222bc6dcb65713da686a5ff52ac9f13e1c062934350cac01bfe"
     },
     {
       "path": "desktop/renderer/menus.js",
@@ -659,8 +664,8 @@
     },
     {
       "path": "desktop/renderer/onboarding.js",
-      "bytes": 3779,
-      "sha256": "743fa52418268636339c8d7b39fc9d9f06a0ea07c1d7bd47a9c72aaa2dac1225"
+      "bytes": 8823,
+      "sha256": "e782911dcdf8fb3a31c0a38f3fe2c937341b2dbe2ac75974449c078b13352376"
     },
     {
       "path": "desktop/renderer/pane-drag.js",
@@ -724,8 +729,8 @@
     },
     {
       "path": "desktop/renderer/window.css",
-      "bytes": 32002,
-      "sha256": "ce0bb7cadfae2d9462e90fa66a1c7ed52ddd10d99a2416545eb3217ce8d08773"
+      "bytes": 31850,
+      "sha256": "d1ea869ea6bf07dd16a83c8e01a84dd2be38a3f8a22454569ffc912cdb94f3e3"
     },
     {
       "path": "desktop/renderer/writing-tools.css",
@@ -743,14 +748,19 @@
       "sha256": "48f21e937c37da53f4ac68b3b169b7ba3c07bb69173dc7b0d12835c139121c38"
     },
     {
+      "path": "desktop/scripts/windows-candidate-evidence.mjs",
+      "bytes": 3917,
+      "sha256": "114f788da7941f7d090252480ac32b431d94fa5ac6031fb83520fab7dcbdf45b"
+    },
+    {
       "path": "desktop/scripts/windows-icons.cjs",
       "bytes": 5615,
       "sha256": "ae68b51c7b60969dfe549a7d82747af13f979e3bc15675ad55094a46f52d45b4"
     },
     {
       "path": "desktop/scripts/windows-installer.mjs",
-      "bytes": 16327,
-      "sha256": "5f468df0bce3c939ed29a437a6bc2a08ef526c149638b60cb67d2637a38c2379"
+      "bytes": 18769,
+      "sha256": "722d73ada16c8fedbb8f12b5589c86ef180968370597692a5d818fa1fe63b9a2"
     },
     {
       "path": "desktop/scripts/windows-msix-assets.cjs",
@@ -765,7 +775,7 @@
     {
       "path": "desktop/scripts/windows-package.mjs",
       "bytes": 3389,
-      "sha256": "9407b29f71131b2036035d9d59209fbf1ae5d586cb2d6290c049739fc387bf73"
+      "sha256": "fa20bce25a7acd162c2693b402e1f7ecaada1f489ea7ac72f623fd6b4bb7e47f"
     },
     {
       "path": "desktop/scripts/windows-sign.ps1",
@@ -1023,9 +1033,14 @@
       "sha256": "82aec0dcac599058a295d77ded1661b2bc7b9c966bddc705429a1a883b605b6c"
     },
     {
+      "path": "desktop/tests/onboarding-flow.test.mjs",
+      "bytes": 9610,
+      "sha256": "b5543dbd370cc4f8e7b56b962ea95384b1b26eea921469062722017cadffb313"
+    },
+    {
       "path": "desktop/tests/onboarding-ui.mjs",
-      "bytes": 5956,
-      "sha256": "389fb09597a93925fa2d1ff0e914ef5813930b7662e6fc025252f8dbe98d3ec4"
+      "bytes": 9652,
+      "sha256": "cf8307c3f9643be69365edcee1f604a4f7dac9cdc33e4e3982aab3104cebe4a1"
     },
     {
       "path": "desktop/tests/onboarding.test.mjs",
@@ -1239,8 +1254,8 @@
     },
     {
       "path": "desktop/tests/windows-installer.test.mjs",
-      "bytes": 6832,
-      "sha256": "d4ef0855543ff08d048939a58aaeb7afbba4f302b348127cadd97eef3b5236d4"
+      "bytes": 8289,
+      "sha256": "493287bb33a8b1f3d98d9445cadf938b289118b2eeb8a67efad496c7a444b152"
     },
     {
       "path": "desktop/tests/writing-context-ui.mjs",
@@ -1894,13 +1909,13 @@
     },
     {
       "path": "PRIVACY.md",
-      "bytes": 926,
-      "sha256": "216f83cefeddbe6e2c1fda274205ac75df229d0879c0e8411edfacb43165fa41"
+      "bytes": 1150,
+      "sha256": "72ca397a5f50f96635c1ed8a6ba1cdc01ef105487233c407cceeb34dd9925e80"
     },
     {
       "path": "README.md",
-      "bytes": 2173,
-      "sha256": "9767182e3e351637e0227cdf7a71f3dd7003236dcc7967b514c4f9914faf78dd"
+      "bytes": 2627,
+      "sha256": "98ec418692083776864b543e30561c3cee7dae6470cf221a92b060453afa943f"
     },
     {
       "path": "tests/device-driver.test.mjs",

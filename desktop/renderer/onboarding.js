@@ -1,52 +1,196 @@
-export function createDefaultOnboarding(bridge) {
-  const modal=document.getElementById('onboarding'),primary=document.getElementById('onboarding-primary'),skip=document.getElementById('onboarding-skip');
-  const description=document.getElementById('onboarding-description'),message=document.getElementById('onboarding-message');
-  let awaitingSettings=false,checking=false,complete=false,previousFocus;
-  function error(value){message.textContent=value?.message || String(value);message.dataset.error='true';}
+export function associationText(extension, state) {
+  if (!state || state.available !== true) return '.' + extension + ' · 未检查';
+  const value = state[extension];
+  const label = value === true ? '已设置' : value == null ? '未确认' : '待设置';
+  return '.' + extension + ' · ' + label;
+}
+
+export function defaultsComplete(state) {
+  return Boolean(state && state.available === true && state.md === true && state.markdown === true);
+}
+
+function productError(kind, raw) {
+  const text = String(raw || '').replace(/^Error:\s*/, '').trim();
+  if (text && /[\u4e00-\u9fff]/.test(text) && text.length <= 80 && !text.includes('\n')) return text;
+  return kind === 'open' ? '没能打开这篇笔记。文件还在原处，可以再试一次。' : '没能新建笔记。可以再试一次。';
+}
+
+export function createDefaultOnboarding(bridge, actions = {}) {
+  const modal = document.getElementById('onboarding');
+  const openNote = document.getElementById('onboarding-open');
+  const newNote = document.getElementById('onboarding-new');
+  const primary = document.getElementById('onboarding-primary');
+  const skip = document.getElementById('onboarding-skip');
+  const description = document.getElementById('onboarding-description');
+  const message = document.getElementById('onboarding-message');
+  let awaitingSettings = false, checking = false, closing = false, noteInFlight = false, complete = false, lastState = null, previousFocus = null, editorComposing = false, deferredOpen = null;
+
+  function say(text, isError) {
+    message.textContent = text;
+    if (isError) message.dataset.error = 'true';
+    else delete message.dataset.error;
+    message.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+  }
+  function setBusy(value) {
+    for (const node of [openNote, newNote, skip, primary]) if (node) node.disabled = value;
+    if (!value && lastState && lastState.available === false && !complete) primary.disabled = true;
+  }
   function showState(state) {
-    complete=state.md && state.markdown;
-    for(const type of ['md','markdown'])document.getElementById(`association-${type}`).textContent=`.${type} · ${state[type]===null?'未确认':state[type]?'已设置':'待设置'}`;
-    primary.textContent=complete?'开始使用':awaitingSettings?'继续设置':'前往设置';
-    skip.hidden=complete;skip.textContent=awaitingSettings?'先开始使用':'暂时跳过';
-    description.textContent=complete?'以后双击 Markdown 文件，就会在这里打开。': '将 M1racle Note 设为默认应用，双击 Markdown 文件就能直接阅读。';
-    message.textContent=complete?'已确认默认打开设置。':state.md===null?'暂时无法确认默认应用，你仍可前往设置或先开始使用。':awaitingSettings?'在 Windows 设置中选择 M1racle Note，完成后回到这里。':'需要在 Windows 设置中确认一次。也可以稍后再设置。';
-    delete message.dataset.error;
+    complete = defaultsComplete(state);
+    for (const extension of ['md', 'markdown']) {
+      const node = document.getElementById('association-' + extension);
+      if (node) node.textContent = associationText(extension, state);
+    }
+    primary.textContent = complete ? '开始使用' : awaitingSettings ? '再检查一次' : '前往设置';
+    primary.disabled = state.available === false && !complete;
+    if (skip) skip.hidden = false;
+    if (description) description.textContent = '笔记就是你电脑里的 Markdown 文件。M1racle Note 在原处打开和保存，不会移动、复制或收进别的库。';
+    const detail = state.available !== true
+      ? '此预览版暂不检查系统默认应用。你可以直接打开或新建笔记。'
+      : complete
+        ? '.md 和 .markdown 都会用 M1racle Note 打开。'
+        : state.md == null || state.markdown == null
+          ? '暂时无法确认是否已设为默认。你仍可前往设置，或直接开始写笔记。'
+          : awaitingSettings
+            ? '请在 Windows 设置中为 .md 和 .markdown 选择 M1racle Note，然后回到这里。'
+            : state.md === true || state.markdown === true
+              ? '还有一种格式没有设为默认。两种都可以稍后再设。'
+              : '默认打开方式可以稍后再设。不设置也能写笔记。';
+    say(detail, false);
+  }
+  function invalidateQuery() {
+    complete = false;
+    const dismissed = lastState?.dismissed === true;
+    lastState = {available: true, dismissed, md: null, markdown: null};
+    for (const extension of ['md', 'markdown']) {
+      const node = document.getElementById('association-' + extension);
+      if (node) node.textContent = '.' + extension + ' · 未确认';
+    }
+    if (primary) {
+      primary.textContent = awaitingSettings ? '再检查一次' : '前往设置';
+      primary.disabled = false;
+    }
+    say('暂时无法确认默认应用。你可以先开始使用，稍后再检查。', true);
   }
   async function refresh() {
-    if(checking)return;
-    checking=true;primary.disabled=true;
-    try {const state=await bridge.request('onboarding-state');showState(state);return state;}
-    catch(value){error(new Error('暂时无法确认默认应用。你可以先开始使用，稍后再检查。'));}
-    finally{checking=false;primary.disabled=false;}
-  }
-  async function close() {
-    primary.disabled=true;skip.disabled=true;
-    try {await bridge.request('onboarding-dismiss');awaitingSettings=false;modal.close();previousFocus?.focus({preventScroll:true});}
-    catch(value){error(new Error('未能保存这次选择，请重试。'));}
-    finally{primary.disabled=false;skip.disabled=false;}
-  }
-  async function open(first=false) {
-    const state=await refresh();
-    if(!state)return;
-    if(!state.available){error(new Error('此预览版暂不支持系统默认打开设置。'));if(!first){previousFocus=document.activeElement;modal.showModal();}return;}
-    if(first && complete){if(!state.dismissed)await bridge.request('onboarding-dismiss');return;}
-    if(first && state.dismissed)return;
-    previousFocus=document.activeElement;if(!modal.open)modal.showModal();
-    primary.focus();
-  }
-  primary.onclick=async()=>{
-    if(complete){await close();return;}
-    primary.disabled=true;
+    if (checking) return lastState;
+    checking = true;
+    if (primary) primary.disabled = true;
     try {
-      const result=await bridge.request('default-app');awaitingSettings=true;
-      message.textContent=result.targeted?'在 Windows 设置中，为 .md 和 .markdown 选择 M1racle Note。':'在 Windows 默认应用设置中搜索 .md，选择 M1racle Note；.markdown 也可以同样设置。';
-      delete message.dataset.error;primary.textContent='继续设置';skip.textContent='先开始使用';
-    }catch(value){error(new Error('未能打开 Windows 设置。可在系统“设置 → 应用 → 默认应用”中搜索 .md，选择 M1racle Note。'));}
-    finally{primary.disabled=false;}
+      const state = await bridge.request('onboarding-state');
+      if (!state || typeof state !== 'object') throw new Error('暂时无法确认默认应用。');
+      lastState = state;
+      showState(state);
+      return state;
+    } catch {
+      invalidateQuery();
+      return null;
+    } finally {
+      checking = false;
+      if (primary) primary.disabled = Boolean(lastState && lastState.available === false && !complete);
+    }
+  }
+  function focusEditor() {
+    if (editorComposing) return;
+    if (typeof actions.focusEditor === 'function') actions.focusEditor();
+  }
+  function restoreFocus() {
+    const target = previousFocus && previousFocus.isConnected !== false ? previousFocus : null;
+    previousFocus = null;
+    if (editorComposing) return;
+    target?.focus?.({preventScroll: true});
+  }
+  async function dismissAndClose(toEditor) {
+    if (closing || noteInFlight) return false;
+    closing = true;
+    setBusy(true);
+    try {
+      await bridge.request('onboarding-dismiss');
+      awaitingSettings = false;
+      modal.close();
+      if (toEditor) focusEditor();
+      else restoreFocus();
+      return true;
+    } catch {
+      say('未能保存这次选择，请重试。', true);
+      return false;
+    } finally {
+      closing = false;
+      setBusy(false);
+    }
+  }
+  function present() {
+    if (!modal.open) previousFocus = document.activeElement;
+    if (!modal.open) modal.showModal();
+    (openNote || primary).focus();
+  }
+  async function open(first = false) {
+    if (editorComposing) { deferredOpen = first; return; }
+    const state = await refresh();
+    if (first && state?.available === false) return;
+    if (first && state?.dismissed) return;
+    present();
+  }
+  async function invokeCommand(kind) {
+    const action = kind === 'open' ? actions.openExisting : actions.createNote;
+    if (typeof action !== 'function') throw new Error(kind === 'open' ? '现在不能打开笔记。' : '现在不能新建笔记。');
+    return action();
+  }
+  async function runNote(kind) {
+    if (editorComposing) { say('输入法还在输入，请先完成当前文字。', true); return; }
+    if (noteInFlight || closing) return;
+    noteInFlight = true;
+    setBusy(true);
+    let succeeded = false;
+    try {
+      const result = await invokeCommand(kind);
+      if (!result || result.ok !== true) {
+        say(result?.error || (kind === 'open' ? '还没有打开笔记。' : '还没有新建笔记。'), Boolean(result?.error));
+        return;
+      }
+      succeeded = true;
+    } catch (error) {
+      say(productError(kind, error?.message || error), true);
+      return;
+    } finally {
+      noteInFlight = false;
+      setBusy(false);
+    }
+    if (succeeded) await dismissAndClose(true);
+  }
+  openNote.onclick = () => runNote('open');
+  newNote.onclick = () => runNote('new');
+  skip.onclick = () => dismissAndClose(false);
+  primary.onclick = async () => {
+    if (complete) { await dismissAndClose(false); return; }
+    if (awaitingSettings) { await refresh(); return; }
+    if (lastState && lastState.available === false) { say('此预览版暂不支持系统默认打开设置。', true); return; }
+    primary.disabled = true;
+    try {
+      const result = await bridge.request('default-app');
+      awaitingSettings = true;
+      primary.textContent = '再检查一次';
+      say(result?.targeted
+        ? '请在 Windows 设置中为 .md 和 .markdown 选择 M1racle Note，然后回到这里。'
+        : '请在 Windows 默认应用设置中搜索 .md，选择 M1racle Note。.markdown 也可以同样设置。', false);
+    } catch {
+      say('未能打开 Windows 设置。可在系统“设置 → 应用 → 默认应用”中搜索 .md，选择 M1racle Note。', true);
+    } finally {
+      primary.disabled = Boolean(lastState && lastState.available === false && !complete);
+    }
   };
-  skip.onclick=close;
-  modal.addEventListener('cancel',event=>{event.preventDefault();close();});
-  window.addEventListener('focus',()=>{if(awaitingSettings && modal.open)refresh();});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden && awaitingSettings && modal.open)refresh();});
-  return {init:()=>open(true),open:()=>open(false)};
+  modal.addEventListener('cancel', event => {
+    event.preventDefault();
+    if (noteInFlight || closing) return;
+    dismissAndClose(false);
+  });
+  window.addEventListener('focus', () => { if (awaitingSettings && modal.open) refresh(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && awaitingSettings && modal.open) refresh(); });
+  document.addEventListener('compositionstart', event => { if (event.target?.closest?.('.cm-content')) editorComposing = true; }, true);
+  document.addEventListener('compositionend', event => {
+    if (!event.target?.closest?.('.cm-content')) return;
+    editorComposing = false;
+    if (deferredOpen !== null) { const first = deferredOpen; deferredOpen = null; open(first); }
+  }, true);
+  return {init: () => open(true), open: () => open(false)};
 }

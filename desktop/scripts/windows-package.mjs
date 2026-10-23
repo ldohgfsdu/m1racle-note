@@ -15,7 +15,7 @@ if(process.argv.includes('--use-existing-icons')) {
 }
 const built=spawnSync(process.execPath,['desktop/scripts/windows-build.mjs'],{stdio:'inherit'});
 if(built.status!==0)process.exit(built.status??1);
-export const version='0.1.18';
+export const version='0.1.19';
 await mkdir('desktop/releases/windows-staging',{recursive:true});
 const staging=await mkdtemp(`desktop/releases/windows-staging/${version}-`);
 for(const file of ['main.mjs','icons.mjs','preload.cjs','session.mjs','drafts.mjs','session-state.mjs','recent-state.mjs','library-state.mjs','library-names.mjs','associations.mjs','onboarding.mjs','store-identity.mjs'])await copyFile(`desktop/${file}`,`${staging}/${file}`);

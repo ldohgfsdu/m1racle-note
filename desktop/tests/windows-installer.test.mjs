@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const generated=new URL('../installer/m1racle-note.nsi',import.meta.url);
 const before=await readFile(generated).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
-const {installerPlan,renderNsis,assertInstallerInvariants,listPayload,readVersionText}=await import('../scripts/windows-installer.mjs');
+const {installerPlan,renderNsis,assertInstallerInvariants,listPayload,readVersionText,uninstallerExportDirective,resolveExportUninstaller}=await import('../scripts/windows-installer.mjs');
 const after=await readFile(generated).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
 const fixture={files:['M1racle Note.exe','resources\\app.asar'],dirs:['resources']};
 const plan=installerPlan({version:'0.1.18'});
@@ -97,4 +97,27 @@ test('safety validation rejects default elevation, user-data wipes and shared re
     assert.throws(()=>assertInstallerInvariants(script+extra,plan),extra);
   }
   assert.throws(()=>assertInstallerInvariants(script.replace('RequestExecutionLevel user','RequestExecutionLevel highest'),plan));
+});
+
+test('product version string matches the three-part application version', () => {
+  assert.match(script, /VIProductVersion "0\.1\.18\.0"/);
+  assert.match(script, /VIAddVersionKey "ProductVersion" "0\.1\.18"/);
+  assert.equal(script.includes('!uninstfinalize'), false);
+  assert.equal(script.includes('!finalize'), false);
+});
+test('export uninstaller uses one Windows backslash and fails closed on unsafe paths', () => {
+  const root = 'C:\\Users\\ExampleUser\\Desktop\\M1racle Note';
+  const abs = resolveExportUninstaller(root, 'desktop/releases/signing/Uninstall.exe');
+  assert.equal(abs, root + '\\desktop\\releases\\signing\\Uninstall.exe');
+  const directive = uninstallerExportDirective(abs);
+  assert.equal(directive, '!uninstfinalize \'copy /Y /B "%1" "' + abs + '"\' = 0');
+  assert.equal(directive.includes('\\\\'), false);
+  const exported = renderNsis(plan, fixture, {exportUninstaller: abs});
+  assert.equal(assertInstallerInvariants(exported, plan), true);
+  assert.ok(exported.includes(directive));
+  assert.ok(exported.includes('WriteUninstaller "$INSTDIR\\Uninstall.exe"'));
+  assert.ok(exported.includes('VIAddVersionKey "ProductVersion" "0.1.18"'));
+  for (const bad of ['desktop\\releases\\signing\\Uninstall.exe', 'C:\\bad$name\\Uninstall.exe', 'C:\\bad&name\\Uninstall.exe', 'C:\\bad"name\\Uninstall.exe']) {
+    assert.throws(() => uninstallerExportDirective(bad), bad);
+  }
 });

@@ -1,8 +1,8 @@
 # Code signing policy
 
-Status: unsigned preview; SignPath Foundation application is planned and has not been approved. No existing binary is represented as signed by SignPath Foundation.
+Status: unsigned preview. A SignPath Foundation application was submitted on 2026-10-23; the website confirmed submission. Approval and signing access remain pending. No existing binary is represented as signed by SignPath Foundation.
 
-Proposed source maintainers, reviewers and signing approvers: [ldohgfsdu](https://github.com/ldohgfsdu). Actual account access, two-factor authentication and signing roles must be confirmed by the account owner before submitting an application.
+Proposed source maintainer, reviewer and signing approver: [ldohgfsdu](https://github.com/ldohgfsdu). The account owner has confirmed that GitHub two-factor authentication is enabled. SignPath account enrollment, its multi-factor authentication and signing-role configuration remain pending.
 
 Release artifacts must be produced from the public source revision using a verifiable build pipeline. Each signing request requires manual maintainer approval. Application, installer and uninstaller signing must be handled explicitly; upstream dependencies retain their own identity and licenses.
 

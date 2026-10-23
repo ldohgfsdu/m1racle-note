@@ -621,8 +621,8 @@ async function command(type,target,options={}) {
   }
   if(type==='close'){if(closing)return;closing=true;try{await closeWindow();}finally{closing=false;}return;}
   const pane=target || active;
-  if(!pane || !panes.includes(pane))return;
-  if(pane.busy)return;
+  if(!pane || !panes.includes(pane))return {ok:false,error:'当前没有可用的编辑窗口，请稍后重试。'};
+  if(pane.busy)return {ok:false,error:'当前操作尚未完成，请稍后重试。'};
   if(target)setActive(pane);
   if(type==='swap-pane'){swapPanes(pane,panes.find(item=>item.id===options.with));return;}
   // Presentation changes already cancel stale scroll restoration through
@@ -653,16 +653,16 @@ async function command(type,target,options={}) {
     if(type==='split-open-down'){await splitPane(pane,'column',true);return;}
     if(type==='split-open-up'){await splitPane(pane,'column',true,true);return;}
     if(type==='split-close'){await closePane(pane);return;}
-    if(type==='open'){await openInPane(pane);return;}
+    if(type==='open')return await openInPane(pane);
     if(type==='new'){
-      if(!await pane.mayLeave()){pane.focus();return;}
+      if(!await pane.mayLeave()){pane.focus();return {ok:false,cancelled:true};}
       const result=await bridge.request(type,{pane:pane.id});
-      if(!result){pane.focus();return;}
+      if(!result){pane.focus();return {ok:false,cancelled:true};}
       pane.load(result,type==='new');
       pane.focus();
-      return;
+      return {ok:true};
     }
-  }catch(error){report(error,pane);}finally{pane.busy=false;}
+  }catch(error){report(error,pane);return {ok:false,error:type==='open'?'没能打开这篇笔记。文件仍在原处，请重试。':type==='new'?'没能新建笔记，请重试。':error?.message || String(error)};}finally{pane.busy=false;}
 }
 const openInsert=createInsertDialog((pending,values)=>{
   const view=pending.view;
@@ -720,7 +720,7 @@ document.addEventListener('keydown',event=>{
 });
 bridge?.onCommand(command);
 bridge?.onAssociationError(report);
-const onboarding=bridge?createDefaultOnboarding(bridge):{open:()=>report(new Error('请在桌面软件中设置默认打开方式。'))};
+const onboarding=bridge?createDefaultOnboarding(bridge,{openExisting:()=>command('open'),createNote:()=>command('new'),focusEditor:()=>active?.focus()}):{open:()=>report(new Error('请在桌面软件中设置默认打开方式。'))};
 const appearance=initAppearance(()=>{for(const pane of panes)pane.view?.requestMeasure();});
 window.addEventListener('storage',event=>{if(event.key!==null && event.key!=='note.theme' && event.key!=='note.appearance')return;if(event.key!=='note.appearance')applyTheme();if(event.key!=='note.theme')appearance.reload();});
 window.addEventListener('focus',()=>scheduleSessionReport(true));

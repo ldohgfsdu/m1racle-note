@@ -16,6 +16,7 @@ VIProductVersion "@@VERSION@@.0"
 VIAddVersionKey "ProductName" "M1racle Note"
 VIAddVersionKey "FileDescription" "M1racle Note 安装程序"
 VIAddVersionKey "FileVersion" "@@VERSION@@"
+VIAddVersionKey "ProductVersion" "@@VERSION@@"
 VIAddVersionKey "LegalCopyright" "M1racle"
 Var InstallMode
 Var RegistryRoot
@@ -43,6 +44,7 @@ Page custom ModePage ModeLeave
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
+@@SIGNING_DIRECTIVES@@
 
 Function SelectMode
   SetRegView 64

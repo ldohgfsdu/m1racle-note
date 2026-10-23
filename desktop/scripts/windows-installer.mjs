@@ -1,5 +1,6 @@
-import {readdirSync, readFileSync, realpathSync, statSync} from 'node:fs';
-import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {lstatSync, readdirSync, readFileSync, realpathSync, statSync} from 'node:fs';
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -202,7 +203,24 @@ function renderAssociations() {
 }
 
 
-export function renderNsis(plan, manifest = {files: [], dirs: []}) {
+
+export function uninstallerExportDirective(absPath) {
+  if (typeof absPath !== 'string' || !/^[A-Za-z]:\\[^"'`$&|!%<>\r\n]*\.exe$/i.test(absPath) || absPath.includes('..\\')) {
+    throw new Error('导出的卸载程序路径无效');
+  }
+  return '!uninstfinalize \'copy /Y /B "%1" "' + absPath + '"\' = 0';
+}
+
+export function resolveExportUninstaller(repoRoot, input) {
+  if (typeof input !== 'string' || input.trim() === '' || input.startsWith('-')) {
+    throw new Error('--export-uninstaller 需要一个 .exe 路径');
+  }
+  const absolute = resolve(repoRoot, input);
+  uninstallerExportDirective(absolute);
+  return absolute;
+}
+
+export function renderNsis(plan, manifest = {files: [], dirs: []}, signing = {}) {
   if(!/^\d+\.\d+\.\d+$/.test(plan.version))throw new Error('Invalid version');
   assertPlain(plan.outFile,'安装器输出');assertPlain(plan.payloadDir,'安装源目录');
   const files=[...(manifest.files||[])],dirs=[...(manifest.dirs||[])];
@@ -224,6 +242,7 @@ export function renderNsis(plan, manifest = {files: [], dirs: []}) {
       `payload_removed_${index}:`,
     ].join('\n')).join('\n'),
     DELETE_FILES:renderDeletes(['m1racle-install.ini'],dirs),
+    SIGNING_DIRECTIVES:signing.exportUninstaller ? uninstallerExportDirective(signing.exportUninstaller) : '',
   };
   return readFileSync(resolve(here,'../installer/setup-template.nsi'),'utf8')
     .replace(/@@([A-Z_]+)@@/g,(_,name)=>{
@@ -235,7 +254,7 @@ export function renderNsis(plan, manifest = {files: [], dirs: []}) {
 export function assertInstallerInvariants(script,plan) {
   const required=['RequestExecutionLevel user','MUI_PAGE_WELCOME','Page custom ModePage ModeLeave','MUI_PAGE_DIRECTORY','MUI_PAGE_INSTFILES','MUI_PAGE_FINISH',
     'ExecShell "runas" "$EXEPATH" "/ALLUSERS"','MUI_FINISHPAGE_RUN_TEXT','MUI_FINISHPAGE_SHOWREADME_TEXT',
-    'M1racleNote.Markdown','GetFileAttributesW','m1racle-install.ini','keep_associations:'];
+    'M1racleNote.Markdown','GetFileAttributesW','m1racle-install.ini','keep_associations:','VIAddVersionKey "ProductVersion"','VIProductVersion'];
   for(const item of required)if(!script.includes(item))throw new Error('Missing installer safety/UI contract: '+item);
   if(/RequestExecutionLevel\s+(admin|highest)|UserChoice|FileExts/i.test(script))throw new Error('Unexpected default elevation or default-app mutation');
   for(const line of script.split(/\r?\n/)) {
@@ -268,6 +287,9 @@ async function main() {
     const index = args.indexOf(name);
     return index >= 0 ? args[index + 1] : undefined;
   };
+  const exportInput = value('--export-uninstaller');
+  if (args.includes('--export-uninstaller') && !exportInput) throw new Error('--export-uninstaller 需要一个 .exe 路径');
+  const exportUninstaller = exportInput ? resolveExportUninstaller(resolve(here, '..', '..'), exportInput) : undefined;
   let version = value('--version') || process.env.M1RACLE_NOTE_VERSION;
   if (!version) {
     const source = readFileSync(join(here, 'windows-package.mjs'), 'utf8');
@@ -302,7 +324,7 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const script = renderNsis(plan, manifest);
+  const script = renderNsis(plan, manifest, exportUninstaller ? {exportUninstaller} : {});
   assertInstallerInvariants(script, plan);
   await mkdir(dirname(plan.scriptPath), {recursive: true});
   await writeFile(plan.scriptPath, Buffer.from(`\uFEFF${script}`, 'utf16le'));
@@ -318,7 +340,18 @@ async function main() {
   console.log('INSTALL: NOT_RUN');
   console.log(`COMPILER: ${compiler}`);
   console.log(`COMPILE_COMMAND: "${compiler}" "${plan.scriptPath}"`);
+  if (exportUninstaller) {
+    const payloadRoot = plan.payloadDir.replace(/[\\/]+$/, '').toLowerCase();
+    if (exportUninstaller.toLowerCase().startsWith(payloadRoot + '\\')) throw new Error('不能把卸载程序导出到安装源目录内');
+    try {
+      if (lstatSync(exportUninstaller).isSymbolicLink()) throw new Error('拒绝把卸载程序导出到链接');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    console.log('EXPORT_UNINSTALLER: ' + exportUninstaller);
+  }
   if(args.includes('--script-only'))return;
+  if (exportUninstaller) await mkdir(dirname(exportUninstaller), {recursive: true});
   await mkdir(dirname(plan.outFile),{recursive:true});
   const compilerTemp=await mkdtemp(resolve(here,'../releases/nsis-temp-'));
   try {
@@ -326,7 +359,16 @@ async function main() {
     if(result.error)throw result.error;
     if(result.status!==0)throw new Error(`NSIS compile failed: ${result.status}`);
     if(statSync(plan.outFile).size<1024)throw new Error('Installer output is missing or incomplete');
-    console.log(`COMPILE: PASS\nSETUP: ${plan.outFile}\nINSTALL: NOT_RUN\nSIGNING: NOT_CONFIGURED`);
+    let signingStatus = 'SIGNING: NOT_CONFIGURED';
+    let exportReport = '';
+    if (exportUninstaller) {
+      const exported = await readFile(exportUninstaller);
+      if (exported.length < 1024 || exported[0] !== 0x4d || exported[1] !== 0x5a) throw new Error('导出的卸载程序不是有效的可执行文件');
+      const sha256 = createHash('sha256').update(exported).digest('hex');
+      signingStatus = 'SIGNING: UNINSTALLER_EXPORTED';
+      exportReport = '\nUNINSTALLER: ' + exportUninstaller + '\nUNINSTALLER_SHA256: ' + sha256 + '\nEMBEDDING: NOT_PROVEN\nINSTALLER_SIGN: NOT_CONFIGURED';
+    }
+    console.log('COMPILE: PASS\nSETUP: ' + plan.outFile + '\nINSTALL: NOT_RUN\n' + signingStatus + exportReport);
   } finally {await rm(compilerTemp,{recursive:true,force:true,maxRetries:3,retryDelay:100});}
 }
 
