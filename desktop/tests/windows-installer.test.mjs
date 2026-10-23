@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const generated=new URL('../installer/m1racle-note.nsi',import.meta.url);
 const before=await readFile(generated).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
-const {installerPlan,renderNsis,assertInstallerInvariants,listPayload,readVersionText,uninstallerExportDirective,resolveExportUninstaller}=await import('../scripts/windows-installer.mjs');
+const {installerPlan,renderNsis,assertInstallerInvariants,listPayload,readVersionText,uninstallerExportDirective,resolveExportUninstaller,uninstallerImportDirective,validateInstallerArguments}=await import('../scripts/windows-installer.mjs');
 const after=await readFile(generated).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
 const fixture={files:['M1racle Note.exe','resources\\app.asar'],dirs:['resources']};
 const plan=installerPlan({version:'0.1.18'});
@@ -120,4 +120,26 @@ test('export uninstaller uses one Windows backslash and fails closed on unsafe p
   for (const bad of ['desktop\\releases\\signing\\Uninstall.exe', 'C:\\bad$name\\Uninstall.exe', 'C:\\bad&name\\Uninstall.exe', 'C:\\bad"name\\Uninstall.exe']) {
     assert.throws(() => uninstallerExportDirective(bad), bad);
   }
+});
+
+test('signed import keeps WriteUninstaller and verifies its exact compiler output in the finalizer',()=>{
+  const imported=renderNsis(plan,fixture,{signedUninstaller:'C:\\Build\\Uninstall.exe'});
+  assert.equal(assertInstallerInvariants(imported,plan),true);
+  assert.ok(imported.includes('WriteUninstaller "$INSTDIR\\Uninstall.exe"'));
+  assert.ok(imported.includes('windows-uninstaller-import.mjs" "%1"'));
+  assert.ok(imported.includes("' = 0"));
+  assert.equal(imported.includes('copy /Y /B'),false);
+  assert.throws(()=>renderNsis(plan,fixture,{signedUninstaller:'C:\\a.exe',exportUninstaller:'C:\\b.exe'}));
+  for(const path of ['C:\\bad&name\\node.exe','C:\\bad$name\\node.exe','C:\\bad%name\\node.exe'])assert.throws(()=>uninstallerImportDirective(path,'C:\\Build\\helper.mjs'));
+});
+
+test('unknown signing switches, conflicting modes and missing or duplicate arguments fail closed',()=>{
+  assert.doesNotThrow(()=>validateInstallerArguments(['--version','0.1.19','--signed-uninstaller','C:\\Build\\Uninstall.exe','--expected-publisher','CN=Verified publisher','--script-only']));
+  assert.doesNotThrow(()=>validateInstallerArguments(['--check']));
+  for(const args of [
+    ['--require-signed'],['--unknown'],['--version'],['--package','--check'],
+    ['--check','--check'],['--version','0.1.19','--version','0.1.18'],
+    ['--signed-uninstaller','a.exe','--export-uninstaller','b.exe'],
+    ['--expected-publisher','CN=publisher'],
+  ])assert.throws(()=>validateInstallerArguments(args));
 });

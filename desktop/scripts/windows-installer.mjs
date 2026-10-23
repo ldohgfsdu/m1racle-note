@@ -1,9 +1,10 @@
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {lstatSync, readdirSync, readFileSync, realpathSync, statSync} from 'node:fs';
 import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {verifyOwnedSignature} from './windows-uninstaller-import.mjs';
 
 export const PRODUCT_NAME = 'M1racle Note';
 export const EXECUTABLE_NAME = 'M1racle Note.exe';
@@ -220,7 +221,29 @@ export function resolveExportUninstaller(repoRoot, input) {
   return absolute;
 }
 
+export function uninstallerImportDirective(nodePath=process.execPath,helperPath=resolve(here,'windows-uninstaller-import.mjs')) {
+  for(const path of [nodePath,helperPath]){
+    if(!/^[A-Za-z]:\\/.test(path)||/["'`$&|!%<>\r\n]/.test(path))throw new Error('卸载程序验证工具路径不安全');
+  }
+  return `!uninstfinalize '"${nodePath}" "${helperPath}" "%1"' = 0`;
+}
+
+export function validateInstallerArguments(args){
+  const values=new Set(['--version','--package','--export-uninstaller','--signed-uninstaller','--expected-publisher']);
+  const flags=new Set(['--check','--script-only']),seen=new Set();
+  for(let index=0;index<args.length;index++){
+    const name=args[index];
+    if(!values.has(name)&&!flags.has(name))throw new Error('不支持的安装器参数: '+name);
+    if(seen.has(name))throw new Error('重复的安装器参数: '+name);
+    seen.add(name);
+    if(values.has(name)&&(!args[++index]||args[index].startsWith('--')))throw new Error(name+' 需要参数值');
+  }
+  if(seen.has('--signed-uninstaller')&&seen.has('--export-uninstaller'))throw new Error('导出与已签名导入不能同时执行');
+  if(seen.has('--expected-publisher')&&!seen.has('--signed-uninstaller'))throw new Error('预期签名者只能与已签名卸载程序一起使用');
+}
+
 export function renderNsis(plan, manifest = {files: [], dirs: []}, signing = {}) {
+  if(signing.exportUninstaller&&signing.signedUninstaller)throw new Error('不能同时导出与导入卸载程序');
   if(!/^\d+\.\d+\.\d+$/.test(plan.version))throw new Error('Invalid version');
   assertPlain(plan.outFile,'安装器输出');assertPlain(plan.payloadDir,'安装源目录');
   const files=[...(manifest.files||[])],dirs=[...(manifest.dirs||[])];
@@ -242,7 +265,7 @@ export function renderNsis(plan, manifest = {files: [], dirs: []}, signing = {})
       `payload_removed_${index}:`,
     ].join('\n')).join('\n'),
     DELETE_FILES:renderDeletes(['m1racle-install.ini'],dirs),
-    SIGNING_DIRECTIVES:signing.exportUninstaller ? uninstallerExportDirective(signing.exportUninstaller) : '',
+    SIGNING_DIRECTIVES:signing.signedUninstaller ? uninstallerImportDirective() : signing.exportUninstaller ? uninstallerExportDirective(signing.exportUninstaller) : '',
   };
   return readFileSync(resolve(here,'../installer/setup-template.nsi'),'utf8')
     .replace(/@@([A-Z_]+)@@/g,(_,name)=>{
@@ -283,6 +306,7 @@ function runningAsCli() {
 
 async function main() {
   const args = process.argv.slice(2);
+  validateInstallerArguments(args);
   const value = name => {
     const index = args.indexOf(name);
     return index >= 0 ? args[index + 1] : undefined;
@@ -290,6 +314,10 @@ async function main() {
   const exportInput = value('--export-uninstaller');
   if (args.includes('--export-uninstaller') && !exportInput) throw new Error('--export-uninstaller 需要一个 .exe 路径');
   const exportUninstaller = exportInput ? resolveExportUninstaller(resolve(here, '..', '..'), exportInput) : undefined;
+  const signedInput=value('--signed-uninstaller');
+  const signedUninstaller=signedInput?resolve(signedInput):undefined;
+  const expectedSubject=value('--expected-publisher')||process.env.NOTE_EXPECTED_SIGNER_SUBJECT;
+  if(signedUninstaller&&!expectedSubject?.trim())throw new Error('导入需要独立核对的预期签名者，不接受任意 Valid 证书');
   let version = value('--version') || process.env.M1RACLE_NOTE_VERSION;
   if (!version) {
     const source = readFileSync(join(here, 'windows-package.mjs'), 'utf8');
@@ -306,6 +334,11 @@ async function main() {
     if (error.code !== 'ENOENT') throw error;
   }
   const ready = payloadPresent && manifest.files.includes(EXECUTABLE_NAME) && manifest.files.includes('resources\\app.asar');
+  let uninstallerSignature,applicationSignature;
+  if(signedUninstaller){
+    uninstallerSignature=await verifyOwnedSignature(signedUninstaller,{version,expectedSubject});
+    applicationSignature=await verifyOwnedSignature(join(plan.payloadDir,EXECUTABLE_NAME),{version,expectedSubject});
+  }
   if (args.includes('--check')) {
     const sample = renderNsis(plan, ready?manifest:{files: [EXECUTABLE_NAME], dirs: []});
     assertInstallerInvariants(sample, plan);
@@ -324,7 +357,7 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const script = renderNsis(plan, manifest, exportUninstaller ? {exportUninstaller} : {});
+  const script = renderNsis(plan, manifest, signedUninstaller ? {signedUninstaller} : exportUninstaller ? {exportUninstaller} : {});
   assertInstallerInvariants(script, plan);
   await mkdir(dirname(plan.scriptPath), {recursive: true});
   await writeFile(plan.scriptPath, Buffer.from(`\uFEFF${script}`, 'utf16le'));
@@ -354,13 +387,23 @@ async function main() {
   if (exportUninstaller) await mkdir(dirname(exportUninstaller), {recursive: true});
   await mkdir(dirname(plan.outFile),{recursive:true});
   const compilerTemp=await mkdtemp(resolve(here,'../releases/nsis-temp-'));
+  const buildId=randomUUID(),proofPath=plan.outFile+'.uninstaller-proof.json';
   try {
-    const result=spawnSync(compiler,[plan.scriptPath],{windowsHide:true,stdio:'inherit',env:{...process.env,TEMP:compilerTemp,TMP:compilerTemp}});
+    if(signedUninstaller)await rm(proofPath,{force:true});
+    const signingEnv=signedUninstaller?{NOTE_SIGNING_UNINSTALLER:signedUninstaller,NOTE_SIGNING_VERSION:version,NOTE_EXPECTED_SIGNER_SUBJECT:expectedSubject.trim(),NOTE_SIGNING_TEMP_ROOT:compilerTemp,NOTE_SIGNING_PROOF_PATH:proofPath,NOTE_SIGNING_BUILD_ID:buildId}:{};
+    const result=spawnSync(compiler,[plan.scriptPath],{windowsHide:true,stdio:'inherit',env:{...process.env,TEMP:compilerTemp,TMP:compilerTemp,...signingEnv}});
     if(result.error)throw result.error;
     if(result.status!==0)throw new Error(`NSIS compile failed: ${result.status}`);
     if(statSync(plan.outFile).size<1024)throw new Error('Installer output is missing or incomplete');
     let signingStatus = 'SIGNING: NOT_CONFIGURED';
     let exportReport = '';
+    if(signedUninstaller){
+      const proof=JSON.parse(await readFile(proofPath,'utf8'));
+      if(proof.buildId!==buildId||proof.version!==version||proof.signedSha256!==uninstallerSignature.sha256||proof.signature?.status!=='Valid'||proof.signature?.subject!==expectedSubject.trim())throw new Error('本次编译的卸载程序验证证明不完整');
+      if(createHash('sha256').update(await readFile(join(plan.payloadDir,EXECUTABLE_NAME))).digest('hex')!==applicationSignature.sha256)throw new Error('应用在签名检查后被修改');
+      signingStatus='SIGNING: OWNED_INPUTS_VERIFIED';
+      exportReport='\nUNINSTALLER_PROOF: '+proofPath+'\nEMBEDDING: COMPILER_INPUT_VERIFIED; FINAL_NATIVE_EXTRACTION_NOT_RUN\nINSTALLER_SIGN: REQUIRED\nRELEASE: NOT_ACCEPTED';
+    }
     if (exportUninstaller) {
       const exported = await readFile(exportUninstaller);
       if (exported.length < 1024 || exported[0] !== 0x4d || exported[1] !== 0x5a) throw new Error('导出的卸载程序不是有效的可执行文件');
