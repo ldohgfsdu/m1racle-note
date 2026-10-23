@@ -13,7 +13,7 @@ const targets=[
  ['installer',resolve(`desktop/releases/windows-installer/${version}/M1racle-Note-Setup-${version}.exe`)],
  ['uninstaller',resolve('desktop/releases/signing/Uninstall.exe')],
 ];
-const ps=`$ErrorActionPreference='Stop';$s=Get-AuthenticodeSignature -LiteralPath $env:NOTE_SIGNATURE_EVIDENCE_FILE;$v=(Get-Item -LiteralPath $env:NOTE_SIGNATURE_EVIDENCE_FILE).VersionInfo;[pscustomobject]@{status=[string]$s.Status;subject=$s.SignerCertificate.Subject;thumbprint=$s.SignerCertificate.Thumbprint;timestampSubject=$s.TimeStamperCertificate.Subject;productName=$v.ProductName;productVersion=$v.ProductVersion}|ConvertTo-Json -Compress`;
+const ps=`$ErrorActionPreference='Stop';$s=Get-AuthenticodeSignature -LiteralPath $env:NOTE_SIGNATURE_EVIDENCE_FILE;$v=(Get-Item -LiteralPath $env:NOTE_SIGNATURE_EVIDENCE_FILE).VersionInfo;[pscustomobject]@{status=[string]$s.Status;signatureType=[string]$s.SignatureType;subject=$s.SignerCertificate.Subject;thumbprint=$s.SignerCertificate.Thumbprint;timestampSubject=$s.TimeStamperCertificate.Subject;productName=$v.ProductName;productVersion=$v.ProductVersion}|ConvertTo-Json -Compress`;
 const files=[];
 const powershell=process.env.NOTE_POWERSHELL_EXE||'pwsh.exe';
 for(const [role,path] of targets){
@@ -29,13 +29,17 @@ if(git.status!==0)throw new Error('Source revision cannot be established');
 const status=spawnSync('git',['status','--porcelain','--untracked-files=normal'],{encoding:'utf8',windowsHide:true});
 if(status.status!==0)throw new Error('Source cleanliness cannot be established');
 const sourceClean=status.stdout.trim().length===0;
-const trusted=files.every(f=>f.signature.status==='Valid');
+const trusted=files.every(f=>f.signature.status==='Valid'&&f.signature.signatureType==='Authenticode');
+const allTimestamped=files.every(f=>Boolean(f.signature.timestampSubject));
+const productIdentityMatches=files.every(f=>f.signature.productName==='M1racle Note'&&f.signature.productVersion===version);
 const expectedSignerSubject=process.env.NOTE_EXPECTED_SIGNER_SUBJECT?.trim()||null;
 const publisherMatches=Boolean(expectedSignerSubject)&&files.every(f=>f.signature.status==='Valid'&&f.signature.subject===expectedSignerSubject);
-const report={schema:1,version,sourceRevision:git.stdout.trim(),sourceClean,githubRun:process.env.GITHUB_RUN_ID||null,observedAt:new Date().toISOString(),files,allAuthenticodeValid:trusted,expectedSignerSubject,publisherMatches,releaseAccepted:false,remaining:'Provider approval, signed-uninstaller embedding provenance, installation/upgrade/uninstallation and onboarding acceptance are separate required gates.'};
+const report={schema:2,version,sourceRevision:git.stdout.trim(),sourceClean,githubRun:process.env.GITHUB_RUN_ID||null,observedAt:new Date().toISOString(),files,allAuthenticodeValid:trusted,allTimestamped,productIdentityMatches,expectedSignerSubject,publisherMatches,releaseAccepted:false,remaining:'Provider approval, signed-uninstaller embedding provenance, installation/upgrade/uninstallation and onboarding acceptance are separate required gates.'};
 await writeFile(join(out,'signatures.json'),JSON.stringify(report,null,2)+'\n');
-await writeFile(join(out,'STATUS.txt'),`DEVELOPMENT BUILD EVIDENCE\nVersion: ${version}\nSource: ${report.sourceRevision}\nSource worktree clean: ${sourceClean}\nAll Authenticode valid: ${trusted}\nExpected publisher matches: ${publisherMatches}\nRELEASE ACCEPTANCE: NOT PASSED\nDo not describe source tests, successful compilation or this artifact upload as a signed release.\n`);
-console.log(JSON.stringify({version,sourceRevision:report.sourceRevision,sourceClean,allAuthenticodeValid:trusted,publisherMatches,releaseAccepted:false,report:join(out,'signatures.json')}));
-if(process.argv.includes('--require-trusted')&&!trusted){console.error('SIGNATURE GATE BLOCKED: application, installer and uninstaller must all have valid trusted signatures.');process.exitCode=1;}
+await writeFile(join(out,'STATUS.txt'),`DEVELOPMENT BUILD EVIDENCE\nVersion: ${version}\nSource: ${report.sourceRevision}\nSource worktree clean: ${sourceClean}\nAll embedded Authenticode valid: ${trusted}\nAll timestamped: ${allTimestamped}\nProduct identity matches: ${productIdentityMatches}\nExpected publisher matches: ${publisherMatches}\nRELEASE ACCEPTANCE: NOT PASSED\nDo not describe source tests, successful compilation or this artifact upload as a signed release.\n`);
+console.log(JSON.stringify({version,sourceRevision:report.sourceRevision,sourceClean,allAuthenticodeValid:trusted,allTimestamped,productIdentityMatches,publisherMatches,releaseAccepted:false,report:join(out,'signatures.json')}));
+if(process.argv.includes('--require-trusted')&&!trusted){console.error('SIGNATURE GATE BLOCKED: application, installer and uninstaller must all have valid embedded Authenticode signatures.');process.exitCode=1;}
+if(process.argv.includes('--require-trusted')&&!allTimestamped){console.error('TIMESTAMP GATE BLOCKED: every owned signature requires a timestamp.');process.exitCode=1;}
+if(process.argv.includes('--require-trusted')&&!productIdentityMatches){console.error('PRODUCT GATE BLOCKED: all three files must match this product and version.');process.exitCode=1;}
 if(process.argv.includes('--require-trusted')&&!sourceClean){console.error('SOURCE GATE BLOCKED: the worktree differs from the recorded source revision.');process.exitCode=1;}
 if(process.argv.includes('--require-trusted')&&!publisherMatches){console.error('PUBLISHER GATE BLOCKED: configure the independently verified expected signer subject; all three signatures must match it exactly.');process.exitCode=1;}

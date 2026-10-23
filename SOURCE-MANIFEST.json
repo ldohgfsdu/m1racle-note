@@ -284,8 +284,8 @@
     },
     {
       "path": "CODE_SIGNING.md",
-      "bytes": 3681,
-      "sha256": "2628f00e3c3fdcd2eb0bbf5b543a13f8109396acc63df1b22358bb8a4e4fa00f"
+      "bytes": 4125,
+      "sha256": "73ca9718f335bf952afc86e690fcb5babd14065236b16c5cc9c4adb86fffa39e"
     },
     {
       "path": "design-system/platform/android/M1racleTokens.kt",
@@ -749,8 +749,8 @@
     },
     {
       "path": "desktop/scripts/windows-candidate-evidence.mjs",
-      "bytes": 4489,
-      "sha256": "d5aa6e1df534bd6307335376b7a046a259c9ee5ec62e97c3866aee9d8a2c58f0"
+      "bytes": 5316,
+      "sha256": "c31b74096f6db3643e5cf231d1eb2026792f529681fda66794637b2bc0484855"
     },
     {
       "path": "desktop/scripts/windows-icons.cjs",
@@ -784,8 +784,8 @@
     },
     {
       "path": "desktop/scripts/windows-uninstaller-import.mjs",
-      "bytes": 8143,
-      "sha256": "ccdbb4df8e47a5724916e8e804cb5a94b263b1e7b59a9115a8470044947fec0c"
+      "bytes": 8318,
+      "sha256": "f462885140fbb72b4e5bc8f4b73b5b9f1d57e8f0d4eacb6ac88c71cd5815660a"
     },
     {
       "path": "desktop/scripts/windows-verify-package.mjs",

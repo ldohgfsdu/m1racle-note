@@ -56,12 +56,13 @@ export async function verifyOwnedSignature(path,{version,expectedSubject}){
   const info=await lstat(path);
   if(!info.isFile()||info.isSymbolicLink())throw new Error('Signature input must be a regular file');
   const before=sha256(await readFile(path));
-  const script=`$ErrorActionPreference='Stop';$p=$env:NOTE_SIGNING_INSPECT_PATH;$s=Get-AuthenticodeSignature -LiteralPath $p;$v=(Get-Item -LiteralPath $p).VersionInfo;[pscustomobject]@{status=[string]$s.Status;subject=$s.SignerCertificate.Subject;thumbprint=$s.SignerCertificate.Thumbprint;timestampSubject=$s.TimeStamperCertificate.Subject;productName=$v.ProductName;productVersion=$v.ProductVersion;sha256=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}|ConvertTo-Json -Compress`;
+  const script=`$ErrorActionPreference='Stop';$p=$env:NOTE_SIGNING_INSPECT_PATH;$s=Get-AuthenticodeSignature -LiteralPath $p;$v=(Get-Item -LiteralPath $p).VersionInfo;[pscustomobject]@{status=[string]$s.Status;signatureType=[string]$s.SignatureType;subject=$s.SignerCertificate.Subject;thumbprint=$s.SignerCertificate.Thumbprint;timestampSubject=$s.TimeStamperCertificate.Subject;productName=$v.ProductName;productVersion=$v.ProductVersion;sha256=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}|ConvertTo-Json -Compress`;
   const inspected=spawnSync(process.env.NOTE_POWERSHELL_EXE||'pwsh.exe',['-NoProfile','-NonInteractive','-Command',script],{windowsHide:true,encoding:'utf8',timeout:30000,maxBuffer:1024*1024,env:{...process.env,NOTE_SIGNING_INSPECT_PATH:resolve(path)}});
   if(inspected.error||inspected.status!==0)throw new Error('Signature inspector failed: '+(inspected.error?.message||inspected.stderr?.trim()));
   const result=JSON.parse(inspected.stdout.replace(/^\uFEFF/,''));
   if(result.sha256!==before||sha256(await readFile(path))!==before)throw new Error('Signature input changed during verification');
   if(result.status!=='Valid')throw new Error('Trusted signature required; observed '+result.status);
+  if(result.signatureType!=='Authenticode')throw new Error('Embedded Authenticode signature required; observed '+result.signatureType);
   if(result.subject!==expectedSubject.trim()||!result.timestampSubject)throw new Error('Expected publisher and trusted timestamp are required');
   if(result.productName!=='M1racle Note'||result.productVersion!==version)throw new Error('Signed product identity or version mismatch');
   return result;
