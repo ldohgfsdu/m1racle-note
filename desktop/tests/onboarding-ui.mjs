@@ -16,7 +16,30 @@ try {
   let captureFailure=null;
   async function capture(name){
     if(captureFailure){captures.push({name,status:'not-run',reason:'Earlier hidden capture failed; no repeated retries.'});return;}
-    try{await page.screenshot({path:join(output,name),timeout:30000});captures.push({name,status:'captured'});}
+    try{
+      await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].filter(i=>i.offsetWidth>0).map(i=>i.decode()));});
+      const handle=await app.browserWindow(page);
+      let snapshot;
+      try{snapshot=await handle.evaluate(async window=>{
+        const state=()=>({visible:window.isVisible(),focused:window.isFocused()});
+        const before=state();
+        if(before.visible||before.focused)throw new Error('Capture requires a hidden, unfocused window');
+        let timer;
+        try{
+          const image=await Promise.race([
+            window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true}),
+            new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Native hidden capture timed out after 30000ms')),30000);}),
+          ]);
+          const after=state();
+          if(after.visible||after.focused||image.isEmpty())throw new Error('Capture changed native state or returned an empty image');
+          return {png:image.toPNG().toString('base64'),size:image.getSize(),before,after};
+        }finally{clearTimeout(timer);}
+      });}finally{await handle.dispose();}
+      assert.ok(snapshot.size.width>0&&snapshot.size.height>0);
+      await writeFile(join(output,name),Buffer.from(snapshot.png,'base64'));
+      const state=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,dark:document.documentElement.classList.contains('dark'),dialogOpen:document.querySelector('#onboarding').open,primary:document.querySelector('#onboarding-primary').textContent}));
+      captures.push({name,status:'captured',method:'webContents.capturePage',size:snapshot.size,before:snapshot.before,after:snapshot.after,state,pixelIdentity:'requires independent visual review'});
+    }
     catch(error){captureFailure=String(error?.message||error);captures.push({name,status:'failed',error:captureFailure});console.error('VISUAL_CAPTURE_FAILED: '+captureFailure);}
   }
   await app.evaluate(({ipcMain})=>{
