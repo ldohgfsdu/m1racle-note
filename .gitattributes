@@ -1,0 +1,3 @@
+# Keep the initial repository snapshot byte-for-byte, even with core.autocrlf=true.
+# This also protects source-preserving fixtures and hash-checked brand packages.
+* -text -eol

@@ -1,0 +1,511 @@
+/*
+ * Local document sidebar visual refresh.
+ * Presentation only: dimensions, metadata, file ownership, and interaction
+ * behavior stay in library.css and library.js.
+ */
+#workspace>#document-sidebar.library-sidebar{
+  --library-refresh-paper:var(--m1-surface-paper);
+  --library-refresh-ink:var(--m1-text-primary);
+  --library-refresh-muted:var(--m1-text-secondary);
+  --library-refresh-faint:var(--m1-text-tertiary);
+  --library-refresh-line:var(--m1-border-default);
+  --library-refresh-fill:var(--m1-surface-subtle);
+  --library-refresh-hover:color-mix(in srgb,var(--m1-text-primary) 4%,var(--m1-surface-paper));
+  --library-refresh-selected:color-mix(in srgb,var(--m1-text-primary) 7%,var(--m1-surface-paper));
+  --library-refresh-pill:var(--m1-radius-round);
+  background:var(--library-refresh-paper);
+  border-right-color:color-mix(in srgb,var(--library-refresh-line) 82%,var(--library-refresh-paper));
+}
+
+/* A quiet masthead: the count is metadata, not a second title. */
+#workspace>#document-sidebar.library-sidebar .library-header{
+  flex-wrap:nowrap;
+  padding:20px 20px 10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-heading{
+  align-items:center;
+  gap:10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-title{
+  font-family:var(--m1-font-ui);
+  font-size:18px;
+  font-weight:var(--m1-typography-weight-semibold);
+  letter-spacing:-.025em;
+  line-height:1.2;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-document-count{
+  min-width:20px;
+  color:var(--library-refresh-faint);
+  font-size:var(--m1-type-caption);
+  font-variant-numeric:tabular-nums;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-actions{
+  position:absolute;
+  top:14px;
+  right:20px;
+  z-index:1;
+  align-items:center;
+  gap:2px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-header{
+  position:relative;
+}
+
+/* One black primary action; the neighboring control is intentionally quiet. */
+#workspace>#document-sidebar.library-sidebar .library-action{
+  min-height:30px;
+  padding:4px 9px;
+  border-radius:var(--library-refresh-pill);
+  font-family:var(--m1-font-ui);
+  font-size:var(--m1-type-control);
+  letter-spacing:-.005em;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action:not(.library-action-primary):not(.library-action-quiet){
+  color:var(--library-refresh-muted);
+  background:transparent;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action:not(.library-action-primary):not(.library-action-quiet):hover{
+  color:var(--library-refresh-ink);
+  background:var(--library-refresh-hover);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action-primary{
+  min-width:64px;
+  padding-inline:12px;
+  border-radius:var(--library-refresh-pill);
+  box-shadow:0 1px 0 color-mix(in srgb,var(--m1-text-primary) 18%,transparent);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action-primary:hover,
+#workspace>#document-sidebar.library-sidebar .library-action-primary:active{
+  opacity:.9;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action-quiet{
+  margin-left:0;
+  min-height:28px;
+  padding:3px 6px;
+  color:var(--library-refresh-muted);
+  font-family:var(--m1-font-ui);
+  font-size:var(--m1-type-caption);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-action-quiet::before{
+  margin-right:3px;
+  color:var(--library-refresh-faint);
+}
+
+/* The search field is the calmest, largest input in the sidebar. */
+#workspace>#document-sidebar.library-sidebar .library-search{
+  padding:0 20px 14px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search-input{
+  min-height:42px;
+  padding:10px 14px 10px 40px;
+  color:var(--library-refresh-ink);
+  background:var(--library-refresh-fill);
+  border-color:transparent;
+  border-radius:14px;
+  font-family:var(--m1-font-ui);
+  font-size:var(--m1-type-body-sm);
+  letter-spacing:-.008em;
+  transition:background-color var(--m1-motion-fast),border-color var(--m1-motion-fast),box-shadow var(--m1-motion-fast);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search::before{
+  left:33px;
+  top:14px;
+  width:11px;
+  height:11px;
+  border-color:var(--library-refresh-faint);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search::after{
+  left:44px;
+  top:25px;
+  background:var(--library-refresh-faint);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search-input::placeholder{
+  color:var(--library-refresh-faint);
+  opacity:1;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search-input:hover{
+  background:color-mix(in srgb,var(--m1-surface-subtle) 78%,var(--m1-surface-paper));
+  border-color:transparent;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-search-input:focus-visible{
+  background:var(--library-refresh-paper);
+  border-color:var(--library-refresh-line);
+  outline:2px solid var(--m1-focus-ring);
+  outline-offset:1px;
+  box-shadow:none;
+}
+
+/* Tabs remain controls, but read as a small segmented choice rather than chrome. */
+#workspace>#document-sidebar.library-sidebar .library-tabs{
+  gap:4px;
+  width:fit-content;
+  margin:0 20px 14px;
+  padding:3px;
+  background:var(--library-refresh-fill);
+  border:0;
+  border-radius:var(--library-refresh-pill);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tab{
+  min-height:30px;
+  padding:4px 12px;
+  color:var(--library-refresh-muted);
+  background:transparent;
+  border-radius:var(--library-refresh-pill);
+  font-family:var(--m1-font-ui);
+  font-size:var(--m1-type-control);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tab:hover{
+  color:var(--library-refresh-ink);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tab[aria-selected=true]{
+  color:var(--library-refresh-ink);
+  background:var(--library-refresh-paper);
+  box-shadow:0 1px 2px color-mix(in srgb,var(--m1-text-primary) 7%,transparent);
+  font-weight:var(--m1-typography-weight-medium);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tab[aria-selected=true]::after{
+  display:none;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-scroller{
+  padding:2px 14px 28px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-section{
+  margin-top:22px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-section:first-child{
+  margin-top:0;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-panel>.library-section[hidden]+.library-section{
+  margin-top:0;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-panel>.library-section:not([hidden])~.library-section{
+  margin-top:22px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-section-heading{
+  min-height:30px;
+  padding:0 6px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-section-title{
+  font-family:var(--m1-font-ui);
+  color:var(--library-refresh-muted);
+  font-size:var(--m1-type-caption);
+  font-weight:var(--m1-typography-weight-semibold);
+  letter-spacing:.085em;
+  text-transform:none;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-section-count{
+  color:var(--library-refresh-faint);
+}
+
+/* Rows use whitespace and a hairline selected state instead of cards. */
+#workspace>#document-sidebar.library-sidebar .library-fixed-grid,
+#workspace>#document-sidebar.library-sidebar .library-list{
+  gap:2px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-fixed-grid{
+  padding:2px 0 0;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile,
+#workspace>#document-sidebar.library-sidebar .library-item{
+  border:0;
+  border-radius:10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile{
+  padding:7px 11px;
+  background:transparent;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile:hover{
+  background:var(--library-refresh-hover);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile.is-current,
+#workspace>#document-sidebar.library-sidebar .library-item.is-current{
+  background:var(--library-refresh-selected);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile.is-current::before,
+#workspace>#document-sidebar.library-sidebar .library-item.is-current::before{
+  left:5px;
+  top:12px;
+  bottom:12px;
+  width:2px;
+  background:var(--library-refresh-ink);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile-name,
+#workspace>#document-sidebar.library-sidebar .library-item-name{
+  letter-spacing:-.008em;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile-hint,
+#workspace>#document-sidebar.library-sidebar .library-item-dir{
+  color:var(--library-refresh-faint);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-item{
+  padding-left:12px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-item:hover{
+  background:var(--library-refresh-hover);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-item:active{
+  background:var(--library-refresh-selected);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-flag{
+  padding:1px 5px;
+  color:var(--library-refresh-muted);
+  background:color-mix(in srgb,var(--m1-surface-paper) 72%,transparent);
+  border-color:color-mix(in srgb,var(--library-refresh-line) 88%,transparent);
+  border-radius:var(--library-refresh-pill);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-more,
+#workspace>#document-sidebar.library-sidebar .library-tile-more,
+#workspace>#document-sidebar.library-sidebar .library-group-action{
+  border-radius:var(--library-refresh-pill);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-tile-more{
+  background:color-mix(in srgb,var(--m1-surface-paper) 80%,transparent);
+}
+
+/* Group disclosure stays a row, with a soft hover and a quieter folder glyph. */
+#workspace>#document-sidebar.library-sidebar .library-group{
+  border-radius:10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group+.library-group{
+  margin-top:1px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-summary{
+  grid-template-columns:12px 16px minmax(0,1fr) 20px;
+  gap:6px;
+  padding:0 6px;
+  border-radius:10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-summary:hover{
+  background:var(--library-refresh-hover);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-summary:hover .library-group-actions{
+  background:var(--library-refresh-hover);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-icon{
+  color:var(--library-refresh-faint);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-name{
+  letter-spacing:-.008em;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-group-list{
+  margin:3px 0 5px 18px;
+  padding-left:7px;
+  border-left-color:color-mix(in srgb,var(--library-refresh-line) 72%,transparent);
+}
+
+/* Empty and error copy should feel intentional without becoming a card. */
+#workspace>#document-sidebar.library-sidebar .library-empty,
+#workspace>#document-sidebar.library-sidebar .library-search-empty,
+#workspace>#document-sidebar.library-sidebar .library-history-empty{
+  color:var(--library-refresh-muted);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-empty{
+  padding-block:36px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-empty strong{
+  font-size:var(--m1-type-body-sm);
+  font-weight:var(--m1-typography-weight-medium);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-unsaved,
+#workspace>#document-sidebar.library-sidebar .library-status{
+  margin-inline:10px;
+  border-radius:10px;
+}
+
+#workspace>#document-sidebar.library-sidebar .library-unsaved{
+  border-left-width:1px;
+  border-left-color:var(--library-refresh-line);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-unsaved-mark{
+  background:var(--library-refresh-ink);
+}
+
+#workspace>#document-sidebar.library-sidebar .library-status[data-tone=error]{
+  background:color-mix(in srgb,var(--m1-status-error) 5%,var(--m1-surface-paper));
+}
+
+/* Menus and the group dialog inherit the same paper-and-ink language. */
+.library-menu,
+.library-dialog{
+  border-radius:14px;
+  border-color:color-mix(in srgb,var(--m1-border-default) 86%,var(--m1-surface-paper));
+}
+
+.library-menu{
+  padding:5px;
+}
+
+.library-menu-item,
+.library-move-select{
+  border-radius:8px;
+}
+
+.library-dialog-field input{
+  background:var(--m1-surface-subtle);
+  border-color:transparent;
+  border-radius:10px;
+}
+
+.library-dialog-field input:hover{
+  border-color:var(--m1-border-default);
+}
+
+.library-dialog-field input:focus{
+  background:var(--m1-surface-paper);
+  border-color:var(--m1-focus-ring);
+  outline:2px solid var(--m1-focus-ring);
+  outline-offset:1px;
+  box-shadow:none;
+}
+
+.library-dialog-button{
+  border-radius:var(--library-refresh-pill);
+}
+
+/* At the existing narrow width, keep the hierarchy but restore horizontal room. */
+@media(max-width:959px){
+  #workspace>#document-sidebar.library-sidebar .library-header{
+    padding-inline:16px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-actions{
+    right:16px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search{
+    padding-inline:16px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search::before{
+    left:29px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search::after{
+    left:40px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-tabs{
+    margin-inline:16px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-scroller{
+    padding-inline:10px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-action:not(.library-action-primary){
+    padding-inline:5px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-action-primary{
+    min-width:52px;
+  }
+}
+
+@media(any-pointer:coarse){
+  #workspace>#document-sidebar.library-sidebar .library-header{
+    min-height:62px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-action,
+  #workspace>#document-sidebar.library-sidebar .library-action-quiet,
+  #workspace>#document-sidebar.library-sidebar .library-tab,
+  #workspace>#document-sidebar.library-sidebar .library-search-input{
+    min-height:var(--m1-component-interaction-target-touch-minimum);
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search{
+    padding-bottom:14px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search::before{
+    top:16px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-search::after{
+    top:27px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-group-summary{
+    grid-template-columns:12px 16px minmax(0,1fr) auto;
+    column-gap:4px;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-group-count{
+    display:none;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-group-actions{
+    grid-column:4;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-group-name{
+    padding-right:0;
+  }
+}
+
+@media(prefers-contrast:more){
+  #workspace>#document-sidebar.library-sidebar .library-tile,
+  #workspace>#document-sidebar.library-sidebar .library-item,
+  #workspace>#document-sidebar.library-sidebar .library-group-summary{
+    border:1px solid transparent;
+  }
+
+  #workspace>#document-sidebar.library-sidebar .library-tile.is-current,
+  #workspace>#document-sidebar.library-sidebar .library-item.is-current{
+    border-color:var(--m1-text-secondary);
+  }
+}

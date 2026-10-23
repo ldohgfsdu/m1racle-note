@@ -1,0 +1,53 @@
+import {_electron as electron,expect} from '@playwright/test';
+import {mkdtemp,mkdir,readFile,writeFile,rm} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {tmpdir} from 'node:os';
+import assert from 'node:assert/strict';
+const dir=await mkdtemp(join(tmpdir(),'note-writing-selection-')),out=process.env.NOTE_QA_OUTPUT || await mkdtemp(join(tmpdir(),'note-block-preview-evidence-')),file=join(dir,'格式预览.md');
+const raw='\ufeff# 保留原文\r\n\r\nAlpha thoughts.\n\n继续写下你的想法。\r\n';
+await mkdir(out,{recursive:true});await writeFile(file,raw);
+const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;
+const app=await electron.launch({executablePath:resolve('node_modules/electron/dist/electron.exe'),args:[resolve('desktop/main.mjs'),file,'--user-data-dir='+join(dir,'profile')],env});
+try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.locator('#filename').filter({hasText:'格式预览.md'}).waitFor();
+  const menu=page.locator('#selection-menu'),panel=page.locator('#selection-text-options'),bytes=()=>readFile(file,'utf8');
+  const select=async()=>{await page.locator('.cm-line').filter({hasText:'Alpha thoughts.'}).click();await page.keyboard.press('Home');await page.keyboard.press('Shift+End');await menu.waitFor();};
+  await select();await page.keyboard.press('Alt+F10');
+  assert.equal(await menu.locator('[data-selection-format=bold]').evaluate(el=>el===document.activeElement),true);
+  await page.keyboard.press('ArrowRight');assert.equal(await menu.locator('[data-selection-format=italic]').evaluate(el=>el===document.activeElement),true);
+  for(let i=0;i<3;i++)await page.keyboard.press('ArrowRight');
+  assert.equal(await menu.locator('[data-selection-submenu=text]').evaluate(el=>el===document.activeElement),true);
+  await page.keyboard.press('ArrowDown');await expect(panel).toBeVisible();
+  await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowRight');
+  assert.equal(await panel.locator('[data-selection-format=heading-2]').evaluate(el=>el===document.activeElement),true);assert.equal(await bytes(),raw);
+  await page.screenshot({path:join(out,'heading-keyboard-preview.png')});await page.keyboard.press('Enter');
+  await expect.poll(bytes).toBe(raw.replace('Alpha thoughts.','## Alpha thoughts.'));await expect(panel).toBeHidden();
+  await page.locator('#undo').click();await expect.poll(bytes).toBe(raw);
+  await select();await menu.locator('[data-selection-submenu=list]').click();const listPanel=page.locator('#selection-list-options');await expect(listPanel).toBeVisible();
+  await listPanel.locator('[data-selection-format=ordered]').hover();assert.equal(await bytes(),raw);await page.screenshot({path:join(out,'list-hover-preview.png')});
+  await listPanel.locator('[data-selection-format=ordered]').click();await expect.poll(bytes).toBe(raw.replace('Alpha thoughts.','1. Alpha thoughts.'));
+  await page.locator('#undo').click();await expect.poll(bytes).toBe(raw);
+  await select();await menu.locator('[data-selection-submenu=text]').click();await panel.locator('[data-selection-format=heading-3]').hover();assert.equal(await bytes(),raw);
+  for(let i=0;i<2 && await panel.isVisible();i++)await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();assert.equal(await menu.locator('[data-selection-submenu=text]').evaluate(el=>el===document.activeElement),true);
+  await page.keyboard.press('Escape');await expect(menu).toBeHidden();
+  await select();await page.locator('#heading-level').click();await page.locator('#heading-menu [data-format=heading-1]').hover();assert.equal(await bytes(),raw);
+  await page.locator('#heading-menu [data-format=heading-1]').click();await expect.poll(bytes).toBe(raw.replace('Alpha thoughts.','# Alpha thoughts.'));
+  await page.keyboard.press('Enter');await expect.poll(bytes).toBe(raw.replace('Alpha thoughts.','# Alpha thoughts.\r\n'));
+  await page.locator('#undo').click();await expect.poll(bytes).toBe(raw.replace('Alpha thoughts.','# Alpha thoughts.'));
+  await page.locator('#undo').click();await expect.poll(bytes).toBe(raw);
+  await page.setViewportSize({width:720,height:600});await select();await menu.locator('[data-selection-submenu=text]').click();
+  const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
+  await page.setViewportSize({width:720,height:601});await page.setViewportSize({width:720,height:600});
+  const touch=await menu.evaluate(el=>{
+    const buttons=[...el.querySelectorAll('button:not(:disabled)')].filter(button=>button.checkVisibility({checkVisibilityCSS:true}));
+    const bounds=buttons.map(button=>{const r=button.getBoundingClientRect();return {action:button.dataset.selectionFormat||button.dataset.selectionCommand||button.dataset.selectionSubmenu,x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};});
+    const overlaps=[];for(let i=0;i<bounds.length;i++)for(let j=i+1;j<bounds.length;j++){const a=bounds[i],b=bounds[j];if(Math.min(a.right,b.right)-Math.max(a.x,b.x)>.1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>.1)overlaps.push([a.action,b.action]);}
+    return {coarse:matchMedia('(any-pointer:coarse)').matches,bounds,overlaps};
+  });
+  assert.equal(touch.coarse,true);for(const b of touch.bounds){assert.ok(b.width>=44&&b.height>=44,JSON.stringify(b));assert.ok(b.x>=0&&b.right<=720&&b.y>=0&&b.bottom<=600,JSON.stringify(b));}assert.deepEqual(touch.overlaps,[]);
+  await page.screenshot({path:join(out,'selection-touch-720.png')});assert.equal(await bytes(),raw);assert.deepEqual(errors,[]);
+  const result={passed:true,checks:['B-I-keyboard-order','heading-grid-keyboard','heading-preview-no-write','heading-commit-undo-preserves-BOM-EOL','ordered-list-preview-commit-undo','escape-submenu-focus-return','topbar-heading-buttons','enter-after-heading-keeps-text','touch44-no-overlap-720','console-clean'],touch};
+  await writeFile(join(out,'selection-ui-result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+}finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});await app.close().catch(()=>{});await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:200});}

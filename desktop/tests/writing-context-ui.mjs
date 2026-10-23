@@ -1,0 +1,66 @@
+import './hidden-launch.mjs';
+import {launchApp} from './input-helpers.mjs';
+import {expect} from '@playwright/test';
+import {mkdir,readFile,stat,writeFile} from 'node:fs/promises';
+import {basename,join,resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+
+const output=resolve(process.env.NOTE_QA_OUTPUT);
+await mkdir(output,{recursive:true});
+const raw='\ufeff# 上下文恢复\r\n\n'+Array.from({length:220},(_,i)=>`第${i+1}行：保留上下文与 English。${i%3?'\r\n':'\n'}`).join('');
+const normalized=raw.replace(/^\ufeff/,'').replace(/\r\n?/g,'\n');
+const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
+const record={suite:'writing-context-ui',status:'PASS',checks:[],scope:'Single hidden window, renderer focus only; physical OS focus UNVERIFIED'};
+let t=await launchApp({raw,name:'上下文恢复.md'});
+const root=t.dir, profile=t.profile, target=t.file;
+try {
+  const before=await readFile(target),mtime=(await stat(target)).mtimeMs;
+  await t.page.locator('#save').click();
+  assert.ok((await readFile(target)).equals(before));
+  assert.equal((await stat(target)).mtimeMs,mtime);
+  record.checks.push('no-edit-save-preserves-bom-mixed-eol-bytes-and-mtime');
+  await t.page.locator('#code').click();
+  await expect(t.page.locator('.pane')).toHaveAttribute('data-mode','source');
+  await t.select(120);
+  await t.page.locator('.cm-content').evaluate(el=>{const view=el.cmTile.root.view;view.scrollDOM.scrollTop=900;});
+  const saved=async()=>JSON.parse(await readFile(join(profile,'session.json'),'utf8'));
+  await expect.poll(()=>saved().then(value=>value.cursor?.anchor).catch(()=>null),{timeout:5000}).toBe(120);
+  await expect.poll(()=>saved().then(value=>value.scrollTop).catch(()=>0),{timeout:5000}).toBeGreaterThanOrEqual(800);
+  record.before=await saved();
+  assert.equal(record.before.mode,'code');
+  assert.equal(Object.keys(record.before).some(key=>/raw|content|text/i.test(key)),false);
+  const proc=t.app.process();
+  const exited=new Promise(done=>proc.once('exit',done));
+  const closed=t.app.waitForEvent('close',{timeout:30000});
+  await t.app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+  await closed;assert.equal(await exited,0);
+  t=await launchApp({keepDir:root,profile,name:basename(target),args:[]});
+  await expect(t.page.locator('#filename')).toHaveText(basename(target));
+  await expect(t.page.locator('.pane')).toHaveAttribute('data-mode','source');
+  assert.equal(await t.doc(),normalized);
+  record.restored=await t.state();
+  assert.deepEqual({anchor:record.restored.anchor,head:record.restored.head},record.before.cursor);
+  assert.ok(Math.abs(record.restored.scrollTop-record.before.scrollTop)<=40,'restored scroll exceeds the existing session contract');
+  assert.ok((await readFile(target)).equals(before));
+  record.sha256Before=record.sha256After=digest(before);
+  record.checks.push('normal-close-restart-restores-source-mode-cursor-scroll-and-exact-bytes');
+  const external=Buffer.from('external isolated version\r\n');
+  await writeFile(target,external);
+  await t.focus();await t.page.keyboard.press('Control+End');await t.page.keyboard.insertText('保留编辑器内的修改');
+  await expect(t.page.locator('#error')).toBeVisible({timeout:5000});
+  await expect(t.page.locator('#error-message')).toContainText('其他程序修改');
+  assert.ok((await readFile(target)).equals(external));
+  assert.equal(await t.doc(),normalized+'保留编辑器内的修改');
+  record.checks.push('restored-document-conflict-refuses-overwrite-and-retains-editor-text');
+  record.externalSha256=digest(external);
+  record.native=await t.app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().map(win=>({visible:win.isVisible(),focused:win.isFocused()})));
+  assert.ok(record.native.every(win=>!win.visible&&!win.focused));
+} catch(error) {
+  record.status='FAIL';record.error=String(error?.stack||error);
+  process.exitCode=1;
+} finally {
+  await writeFile(join(output,'writing-context-ui.json'),JSON.stringify(record,null,2),{flag:'wx'});
+  console.log(JSON.stringify({suite:record.suite,status:record.status,checks:record.checks,error:record.error}));
+  await t.close();
+}

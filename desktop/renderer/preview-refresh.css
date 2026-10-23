@@ -1,0 +1,217 @@
+/* Presentation-only desktop chrome refresh. Loaded after chrome.css so the
+   existing 44px/36px layout and responsive behavior remain authoritative. */
+:root {
+  --note-preview-hairline: color-mix(in srgb, var(--m1-border-default) 78%, transparent);
+}
+
+header.titlebar {
+  gap: 10px;
+  padding-left: 20px;
+  background: var(--m1-surface-raised);
+  border-bottom-color: var(--note-preview-hairline);
+}
+
+.titlebar .brand {
+  gap: 8px;
+  font-size: var(--m1-type-control);
+  letter-spacing: 0;
+}
+
+.titlebar .brand-name {
+  color: var(--m1-text-primary);
+  font-weight: var(--m1-typography-weight-semibold);
+}
+
+.titlebar #sidebar-toggle {
+  color: var(--m1-text-secondary);
+  border-radius: var(--m1-radius-sm);
+}
+
+.titlebar #sidebar-toggle:hover {
+  color: var(--m1-text-primary);
+}
+
+.file-identity {
+  padding-left: 2px;
+  border-left: 0;
+}
+
+#filename {
+  padding: 2px 6px;
+  margin: -2px -6px;
+  color: var(--m1-text-primary);
+  font-size: 13px;
+  font-weight: var(--m1-typography-weight-semibold);
+  letter-spacing: 0;
+}
+
+#filename:hover {
+  background: var(--m1-action-hover);
+}
+
+.titlebar nav {
+  gap: 4px;
+}
+
+.titlebar > #sidebar-toggle,
+.titlebar nav > button:not(#save),
+.titlebar .switch button,
+.titlebar .toolbar-menu > summary {
+  color: var(--m1-text-secondary);
+  font-weight: var(--m1-typography-weight-medium);
+  transition:
+    background-color var(--m1-motion-fast),
+    border-color var(--m1-motion-fast),
+    color var(--m1-motion-fast),
+    opacity var(--m1-motion-fast);
+}
+
+.titlebar > #sidebar-toggle:hover,
+.titlebar nav > button:not(#save):hover,
+.titlebar .switch button:hover,
+.titlebar .toolbar-menu > summary:hover,
+.titlebar .toolbar-menu[open] > summary {
+  color: var(--m1-text-primary);
+  background: var(--m1-action-hover);
+}
+
+.titlebar > #sidebar-toggle:active,
+.titlebar nav > button:not(#save):active,
+.titlebar .switch button:active {
+  background: var(--m1-action-pressed);
+}
+
+.titlebar #save {
+  padding-inline: 12px;
+  color: var(--m1-action-primary-fg);
+  background: var(--m1-action-primary-bg);
+  border-color: transparent;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--m1-text-primary) 18%, transparent);
+  font-weight: var(--m1-typography-weight-semibold);
+  transition:
+    background-color var(--m1-motion-fast),
+    box-shadow var(--m1-motion-fast),
+    opacity var(--m1-motion-fast);
+}
+
+.titlebar #save:hover,
+.titlebar #save:active {
+  color: var(--m1-action-primary-fg);
+  background: var(--m1-action-primary-bg);
+  opacity: .9;
+}
+
+.title-divider {
+  background: var(--note-preview-hairline);
+}
+
+.titlebar .switch {
+  background: var(--m1-surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--note-preview-hairline);
+}
+
+.titlebar .switch button {
+  color: var(--m1-text-secondary);
+}
+
+.titlebar .switch button:hover {
+  color: var(--m1-text-primary);
+}
+
+.titlebar .switch button[aria-pressed="true"] {
+  color: var(--m1-text-primary);
+  background: var(--m1-surface-paper);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--m1-text-primary) 9%, transparent);
+}
+
+.titlebar #theme {
+  border-radius: var(--m1-radius-round);
+}
+
+#format {
+  gap: 3px;
+  padding-inline: 20px;
+  background: var(--m1-surface-paper);
+  border-bottom-color: var(--note-preview-hairline);
+}
+
+#format > button,
+#format .toolbar-menu > summary,
+#heading-level {
+  color: var(--m1-text-secondary);
+  background: transparent;
+  border-color: transparent;
+  font-weight: var(--m1-typography-weight-medium);
+  transition:
+    background-color var(--m1-motion-fast),
+    border-color var(--m1-motion-fast),
+    color var(--m1-motion-fast);
+}
+
+#format > button:hover,
+#format .toolbar-menu > summary:hover,
+#format .toolbar-menu[open] > summary,
+#heading-level:hover {
+  color: var(--m1-text-primary);
+  background: var(--m1-action-hover);
+}
+
+#format > button:active,
+#format .toolbar-menu > summary:active {
+  background: var(--m1-action-pressed);
+}
+
+#format > button[aria-pressed="true"] {
+  color: var(--m1-text-primary);
+  background: var(--m1-action-pressed);
+}
+
+#heading-level {
+  margin-right: 2px;
+  border-color: var(--note-preview-hairline);
+}
+
+.toolbar-divider {
+  background: var(--note-preview-hairline);
+  margin-inline: 6px;
+}
+
+@media (max-width: 1050px) {
+  header.titlebar {
+    gap: 8px;
+  }
+
+  #format {
+    padding-inline: 16px;
+  }
+}
+
+@media (max-width: 850px) {
+  header.titlebar {
+    gap: 6px;
+    padding-left: 12px;
+  }
+
+  .titlebar #save {
+    padding-inline: 8px;
+  }
+
+  #format {
+    gap: 2px;
+    padding-inline: 12px;
+  }
+
+  .toolbar-divider {
+    margin-inline: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titlebar button,
+  .titlebar .toolbar-menu > summary,
+  #format > button,
+  #format .toolbar-menu > summary,
+  #heading-level {
+    transition: none;
+  }
+}

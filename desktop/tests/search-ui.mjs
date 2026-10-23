@@ -1,0 +1,36 @@
+import {_electron as electron,expect} from '@playwright/test';
+import {mkdtemp,mkdir,writeFile,readFile,stat,rm} from 'node:fs/promises';
+import {join,resolve} from 'node:path';
+import {tmpdir} from 'node:os';
+import assert from 'node:assert/strict';
+const dir=await mkdtemp(join(tmpdir(),'note-search-')),file=join(dir,'查找替换.md');
+const output=process.env.NOTE_QA_OUTPUT || await mkdtemp(join(tmpdir(),'note-search-evidence-'));await mkdir(output,{recursive:true});
+const raw='\ufeff# 查找替换\r\n\r\n苹果 apple 苹果。\n\n第二段 apple 和 APPLE。\r\n最后不变。';await writeFile(file,raw);
+const originalMtime=(await stat(file)).mtimeMs,env={...process.env};delete env.ELECTRON_RUN_AS_NODE;
+const app=await electron.launch({executablePath:resolve('node_modules/electron/dist/electron.exe'),args:[process.env.NOTE_TEST_APP_ENTRY || resolve('desktop/main.mjs'),file,'--user-data-dir='+join(dir,'profile')],env});
+try {
+ const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',e=>{if(e.type()==='error')errors.push(e.text());});
+ await page.locator('#filename').filter({hasText:'查找替换.md'}).waitFor();await page.locator('#find').click();
+ const panel=page.locator('.cm-search'),query=panel.getByRole('textbox',{name:'查找',exact:true}),replacement=panel.getByRole('textbox',{name:'替换为',exact:true});
+ await query.fill('apple');await query.press('End');await panel.getByRole('button',{name:'下一处',exact:true}).click();
+ await panel.getByRole('button',{name:'上一处',exact:true}).click();assert.equal((await stat(file)).mtimeMs,originalMtime);
+ await panel.getByRole('button',{name:'选中全部',exact:true}).click();
+ assert.equal(await page.locator('.cm-content').evaluate(element=>element.cmTile.root.view.state.selection.ranges.length),3);
+ await panel.getByRole('button',{name:'关闭查找',exact:true}).click();
+ await page.locator('[data-format=bold]').hover();await expect(page.locator('.style-preview-bold')).toHaveCount(3);assert.equal(await readFile(file,'utf8'),raw);
+ await page.locator('[data-format=bold]').click();await expect.poll(()=>readFile(file,'utf8')).toBe(raw.replace(/apple/gi,value=>'**'+value+'**'));
+ await page.locator('#undo').click();await expect.poll(()=>readFile(file,'utf8')).toBe(raw);
+ await page.keyboard.insertText('pear');await expect.poll(()=>readFile(file,'utf8')).toBe(raw.replace(/apple/gi,'pear'));
+ await page.locator('#undo').click();await expect.poll(()=>readFile(file,'utf8')).toBe(raw);await page.locator('#find').click();
+ await replacement.fill('pear');await replacement.press('End');await panel.getByRole('button',{name:'全部替换',exact:true}).click();
+ await expect.poll(()=>readFile(file,'utf8')).toBe(raw.replace(/apple/gi,'pear'));
+ await page.locator('#undo').click();await expect.poll(()=>readFile(file,'utf8')).toBe(raw);
+ await query.fill('(apple)');await query.press('End');await panel.getByRole('checkbox',{name:'正则表达式',exact:true}).check();await panel.getByRole('checkbox',{name:'区分大小写',exact:true}).check();
+ await replacement.fill('$1 已处理');await replacement.press('End');await panel.getByRole('button',{name:'全部替换',exact:true}).click();
+ await expect.poll(()=>readFile(file,'utf8')).toBe(raw.replace(/(apple)/g,'$1 已处理'));
+ await page.locator('#undo').click();await expect.poll(()=>readFile(file,'utf8')).toBe(raw);
+ await query.fill('[');await query.press('End');await panel.getByRole('button',{name:'全部替换',exact:true}).click();assert.equal(await readFile(file,'utf8'),raw);
+ await query.fill('apple');await query.press('End');await page.setViewportSize({width:720,height:600});
+ await page.screenshot({path:join(output,'search-720.png')});await panel.getByRole('button',{name:'关闭查找',exact:true}).click();await expect(panel).toBeHidden();
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,checks:['Chinese-labels','next-previous-no-write','select-all-matches','multi-range-hover-and-format','multi-range-typing','case-insensitive-replace-all','regex-captures-case-sensitive','invalid-regex-no-write','undo-exact-BOM-mixed-EOL','720px-panel','close','console-clean'],output}));
+}finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});await app.close().catch(()=>{});await rm(dir,{recursive:true,force:true,maxRetries:20,retryDelay:250});}

@@ -1,0 +1,12 @@
+/* Material is limited to floating controls. Lists and reading surfaces stay quiet. */
+.glass{background:var(--m1-surface-overlay);border:1px solid var(--m1-border-overlay);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--m1-shadow-raised)}
+.glass.popover{background:var(--m1-surface-paper);border-color:var(--m1-border-default);backdrop-filter:none;-webkit-backdrop-filter:none}
+.new-note.glass{background:var(--m1-action-primary-bg);color:var(--m1-action-primary-fg);border-color:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.new-note.glass:hover,.new-note.glass:active{background:var(--m1-action-primary-bg)}
+.range-setting input{appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;touch-action:pan-y}
+.range-setting input::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:var(--m1-text-secondary)}
+.range-setting input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:24px;height:24px;margin-top:-10px;border-radius:50%;border:1px solid var(--m1-action-primary-bg);background:var(--m1-action-primary-bg)}
+.range-setting input::-moz-range-track{height:4px;border-radius:4px;background:var(--m1-text-secondary)}
+.range-setting input::-moz-range-thumb{width:24px;height:24px;border-radius:50%;border:1px solid var(--m1-action-primary-bg);background:var(--m1-action-primary-bg)}
+.cm-search :is(button,input:not([type=checkbox])){background:var(--m1-surface-subtle);border:1px solid var(--m1-border-default);border-radius:var(--m1-radius-sm);color:var(--ink)}
+@media(prefers-contrast:more){.glass{background:var(--m1-surface-paper);border-color:var(--m1-text-secondary)}}
