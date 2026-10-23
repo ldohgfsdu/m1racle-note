@@ -31,4 +31,4 @@ GitHub 的 Windows build evidence 工作流生成开发验证资料，并在签�
 
 ## 许可与 Code signing policy
 
-原创源码采用 [MIT License](LICENSE)。第三方软件和字体保留各自许可证，见 [第三方声明](THIRD_PARTY_NOTICES.md)。[Code signing policy](CODE_SIGNING.md) 说明 SignPath 申请已于 2026-10-23 提交，当前等待审核，尚未获批；[隐私说明](PRIVACY.md) 列出本地文件及网络行为。
+原创源码采用 [MIT License](LICENSE)。第三方软件和字体保留各自许可证，见 [第三方声明](THIRD_PARTY_NOTICES.md)。[Code signing policy](CODE_SIGNING.md) 说明 SignPath Foundation 申请目前未获批准，项目仍为未签名预览版；[隐私说明](PRIVACY.md) 列出本地文件及网络行为。

@@ -284,8 +284,8 @@
     },
     {
       "path": "CODE_SIGNING.md",
-      "bytes": 4125,
-      "sha256": "73ca9718f335bf952afc86e690fcb5babd14065236b16c5cc9c4adb86fffa39e"
+      "bytes": 4318,
+      "sha256": "eea0a76821765fe29743917eb5003886b7d64fea5a5957634595e469a292917d"
     },
     {
       "path": "design-system/platform/android/M1racleTokens.kt",
@@ -1924,8 +1924,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 2627,
-      "sha256": "98ec418692083776864b543e30561c3cee7dae6470cf221a92b060453afa943f"
+      "bytes": 2629,
+      "sha256": "23c0d14080d355ab1513fa0451012c1c38797240a97256607bc90ef2b641254f"
     },
     {
       "path": "tests/device-driver.test.mjs",
