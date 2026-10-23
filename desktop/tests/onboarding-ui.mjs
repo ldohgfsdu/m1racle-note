@@ -18,6 +18,12 @@ try {
     if(captureFailure){captures.push({name,status:'not-run',reason:'Earlier hidden capture failed; no repeated retries.'});return;}
     try{
       await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].filter(i=>i.offsetWidth>0).map(i=>i.decode()));});
+      await page.evaluate(()=>new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>reject(new Error('Hidden paint boundary timed out after 30000ms')),30000);
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{clearTimeout(timer);resolve();}));
+      }));
+      const readState=()=>page.evaluate(()=>({theme:document.documentElement.dataset.theme,dark:document.documentElement.classList.contains('dark'),dialogOpen:document.querySelector('#onboarding').open,primary:document.querySelector('#onboarding-primary').textContent}));
+      const expectedState=await readState();
       const handle=await app.browserWindow(page);
       let snapshot;
       try{snapshot=await handle.evaluate(async window=>{
@@ -37,8 +43,9 @@ try {
       });}finally{await handle.dispose();}
       assert.ok(snapshot.size.width>0&&snapshot.size.height>0);
       await writeFile(join(output,name),Buffer.from(snapshot.png,'base64'));
-      const state=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,dark:document.documentElement.classList.contains('dark'),dialogOpen:document.querySelector('#onboarding').open,primary:document.querySelector('#onboarding-primary').textContent}));
-      captures.push({name,status:'captured',method:'webContents.capturePage',size:snapshot.size,before:snapshot.before,after:snapshot.after,state,pixelIdentity:'requires independent visual review'});
+      const state=await readState();
+      assert.deepEqual(state,expectedState,'Onboarding state changed during capture');
+      captures.push({name,status:'captured',method:'webContents.capturePage',size:snapshot.size,before:snapshot.before,after:snapshot.after,expectedState,state,pixelIdentity:'requires independent visual review'});
     }
     catch(error){captureFailure=String(error?.message||error);captures.push({name,status:'failed',error:captureFailure});console.error('VISUAL_CAPTURE_FAILED: '+captureFailure);}
   }
