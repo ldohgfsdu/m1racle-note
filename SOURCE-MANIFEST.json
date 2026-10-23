@@ -1039,8 +1039,8 @@
     },
     {
       "path": "desktop/tests/onboarding-ui.mjs",
-      "bytes": 10389,
-      "sha256": "f8ea6879e2ef9a726f39bef988b4c6840d63ba3cb0053ef31ecc4e2c03fb5595"
+      "bytes": 10400,
+      "sha256": "c0b61df62fd06fe7457b9e7cab82d371e22084f8414c6b60a5d8ba4d13929ef5"
     },
     {
       "path": "desktop/tests/onboarding.test.mjs",

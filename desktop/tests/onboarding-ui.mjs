@@ -101,7 +101,7 @@ try {
   assert.match(await page.locator('#onboarding-message').innerText(),/预览版/);
   assert.equal(await page.locator('#onboarding-primary').isDisabled(),true);
   assert.equal(await page.locator('#onboarding-open').isDisabled(),false);
-  assert.equal(await page.locator('#default-app').innerText(),'使用引导与默认应用…');
+  assert.equal((await page.locator('#default-app').textContent()).trim(),'使用引导与默认应用…');
   assert.deepEqual(errors,[]);
   const result={passed:!captureFailure,functionalPassed:true,visualCaptureComplete:!captureFailure,visualAcceptance:'Not established by screenshot existence; requires independent visual review.',screenshots:output,captures,checks:['first-launch-dialog','initial-focus-open','refresh-failure-clears-success','open-cancel-keeps-dialog','new-error-keeps-dialog','new-success-closes','source-no-auto-intro','manual-source-intro','escape-skip','no-page-or-console-errors']};
   await writeFile(join(output,'onboarding-result.json'),JSON.stringify(result,null,2)+'\n');
