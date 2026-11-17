@@ -7,14 +7,6 @@ on:
         description: Require trusted signatures in addition to preview checks
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths:
-      - 'desktop/**'
-      - 'editor/**'
-      - 'package*.json'
-      - '.github/workflows/windows-candidate.yml'
-
 permissions:
   contents: read
 
